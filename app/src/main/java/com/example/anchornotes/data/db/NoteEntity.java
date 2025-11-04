@@ -15,7 +15,12 @@ public class NoteEntity {
     public boolean pinned;
     public long createdAt;
     public long updatedAt;
+    //adding
+    public Double latitude;
+    public Double longitude;
+    public String locationLabel;
 
+    public NoteEntity() {} // Room
     public NoteEntity(long id, String title, String bodyHtml,
                       boolean hasPhoto, String photoUri,
                       boolean hasVoice, String voiceUri,

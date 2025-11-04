@@ -4,6 +4,8 @@
 
     <!-- Needed for voice recording in the editor -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 
     <!-- NOTE: Do NOT add READ_MEDIA_IMAGES when using ACTION_GET_CONTENT/SAF. -->
     <!-- The picker grants URI permissions; no storage permission required. -->

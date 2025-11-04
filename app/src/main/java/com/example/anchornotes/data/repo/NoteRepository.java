@@ -65,6 +65,14 @@ public class NoteRepository {
         }
     }
 
+    public void setPinned(long noteId, boolean pinned) {
+        dao.setPinned(noteId, pinned, System.currentTimeMillis());
+    }
+
+    public void setLocation(long noteId, Double lat, Double lon, String label) {
+        dao.updateLocation(noteId, lat, lon, label, System.currentTimeMillis());
+    }
+
     private static String safe(String s) { return s == null ? "" : s; }
     private static boolean notEmpty(String s) { return s != null && !s.isEmpty(); }
 }

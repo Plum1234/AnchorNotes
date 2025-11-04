@@ -1,28 +1,23 @@
 package com.example.anchornotes;
 
 import android.os.Bundle;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
-import com.example.anchornotes.databinding.ActivityMainBinding;
-import com.example.anchornotes.ui.HomeFragmentKotlin;
+import androidx.fragment.app.FragmentTransaction;
+
+import com.example.anchornotes.ui.HomeFragment;
 
 public class MainActivity extends AppCompatActivity {
-    private ActivityMainBinding binding;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        binding = ActivityMainBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
-
-        // Set up toolbar
-        Toolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+        setContentView(R.layout.activity_main); // must contain a View with id fragment_container
 
         if (savedInstanceState == null) {
-            getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, HomeFragmentKotlin.newInstance())
-                    .commit();
+            FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+            ft.replace(R.id.fragment_container, HomeFragment.newInstance());
+            ft.commit();
         }
     }
 }

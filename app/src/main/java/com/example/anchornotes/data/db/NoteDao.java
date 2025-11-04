@@ -26,4 +26,11 @@ public interface NoteDao {
 
     @Query("SELECT * FROM notes WHERE id = :id LIMIT 1")
     NoteEntity getById(long id);   // ← added
+
+    @Query("UPDATE notes SET pinned = :pinned, updatedAt = :updatedAt WHERE id = :noteId")
+    void setPinned(long noteId, boolean pinned, long updatedAt);
+
+    @Query("UPDATE notes SET latitude = :lat, longitude = :lon, locationLabel = :label, updatedAt = :updatedAt WHERE id = :noteId")
+    void updateLocation(long noteId, Double lat, Double lon, String label, long updatedAt);
+
 }

@@ -1,9 +1,11 @@
 package com.example.anchornotes.ui;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.Html;
@@ -14,7 +16,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
-import android.content.Intent;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -25,8 +26,12 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.bumptech.glide.Glide;
+import com.example.anchornotes.data.ServiceLocator;
+import com.example.anchornotes.data.db.NoteEntity;
 import com.example.anchornotes.databinding.FragmentNoteEditorBinding;
 import com.example.anchornotes.viewmodel.NoteEditorViewModel;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 
 import java.io.File;
 
@@ -39,6 +44,11 @@ public class NoteEditorFragment extends Fragment {
     private MediaRecorder recorder;
     private MediaPlayer player;
     private NoteEditorViewModel vm;
+
+    // --- Location state ---
+    private FusedLocationProviderClient fused;
+    private Double noteLat, noteLon;
+    private String noteLocLabel;
 
     public static NoteEditorFragment newInstance(@Nullable Long id) {
         NoteEditorFragment f = new NoteEditorFragment();
@@ -71,11 +81,26 @@ public class NoteEditorFragment extends Fragment {
                 == PackageManager.PERMISSION_GRANTED;
     }
 
+    /* --------------------- Location permission --------------------- */
+    private final ActivityResultLauncher<String> locPerm =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+                if (granted) onAddOrUpdateLocation();
+                else Toast.makeText(requireContext(), "Location permission is required", Toast.LENGTH_SHORT).show();
+            });
+
+    private boolean hasLocPermission() {
+        return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED
+                || ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
     @Override public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (getArguments()!=null && getArguments().containsKey(ARG_ID))
             noteId = getArguments().getLong(ARG_ID);
         vm = new ViewModelProvider(this).get(NoteEditorViewModel.class);
+        fused = LocationServices.getFusedLocationProviderClient(requireContext());
     }
 
     @Nullable @Override
@@ -92,7 +117,7 @@ public class NoteEditorFragment extends Fragment {
         /* ---------- Prefill when editing ---------- */
         if (noteId != null) {
             try {
-                com.example.anchornotes.data.db.NoteEntity n = vm.load(noteId);
+                NoteEntity n = vm.load(noteId);
                 if (n != null) {
                     b.etTitle.setText(n.title == null ? "" : n.title);
                     b.etBody.setText(Html.fromHtml(
@@ -107,8 +132,15 @@ public class NoteEditorFragment extends Fragment {
                         voicePath = n.voiceUri;
                         b.btnPlay.setEnabled(true);
                     }
+                    // --- prefill location ---
+                    noteLat = n.latitude;
+                    noteLon = n.longitude;
+                    noteLocLabel = n.locationLabel;
+                    updateLocationButtonLabel();
                 }
             } catch (Exception ignored) {}
+        } else {
+            updateLocationButtonLabel();
         }
 
         /* ---------- UI actions ---------- */
@@ -125,10 +157,26 @@ public class NoteEditorFragment extends Fragment {
 
         b.btnPlay.setOnClickListener(v -> playVoice());
 
+        // --- Location button ---
+        b.btnLocation.setOnClickListener(v -> showLocationActions());
+
         b.btnSave.setOnClickListener(v -> {
             String title = b.etTitle.getText().toString().trim();
             String bodyHtml = Html.toHtml(b.etBody.getText());
-            vm.save(noteId, title, bodyHtml, photoUri, voicePath, false);
+
+            boolean isNew = (noteId == null);
+            long savedId = vm.save(noteId, title, bodyHtml, photoUri, voicePath, false);
+            noteId = savedId;
+
+            // Ask to update location on edit (if we have permission)
+            if (!isNew && hasLocPermission()) {
+                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                        .setMessage("Update location to current?")
+                        .setPositiveButton("Yes", (d,w) -> onAddOrUpdateLocation())
+                        .setNegativeButton("No", null)
+                        .show();
+            }
+
             Toast.makeText(requireContext(), "Saved", Toast.LENGTH_SHORT).show();
             requireActivity().getSupportFragmentManager().popBackStack();
         });
@@ -210,6 +258,98 @@ public class NoteEditorFragment extends Fragment {
         int lineStart = caret;
         while (lineStart > 0 && text.charAt(lineStart - 1) != '\n') lineStart--;
         text.insert(lineStart, prefix);
+    }
+
+    /* ===================== Location helpers ===================== */
+
+    private void updateLocationButtonLabel() {
+        if (b == null) return;
+        if (noteLat != null && noteLon != null) {
+            b.btnLocation.setText("Location • View/Update/Remove");
+        } else {
+            b.btnLocation.setText("Add Location");
+        }
+    }
+
+    private void showLocationActions() {
+        if (noteLat == null || noteLon == null) {
+            // no location yet – just add
+            onAddOrUpdateLocation();
+            return;
+        }
+        String[] items = new String[]{"View on Map", "Update to Current", "Remove Location"};
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle("Location")
+                .setItems(items, (d, which) -> {
+                    switch (which) {
+                        case 0: viewOnMap(); break;
+                        case 1: onAddOrUpdateLocation(); break;
+                        case 2: removeLocation(); break;
+                    }
+                })
+                .show();
+    }
+
+    private void viewOnMap() {
+        if (noteLat == null || noteLon == null) {
+            Toast.makeText(requireContext(), "No location saved", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String label = (noteLocLabel == null || noteLocLabel.isEmpty()) ? "Note location" : noteLocLabel;
+        String geo = String.format(java.util.Locale.US, "geo:%f,%f?q=%f,%f(%s)",
+                noteLat, noteLon, noteLat, noteLon, label);
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(geo)));
+        } catch (Exception e) {
+            Toast.makeText(requireContext(), "No maps app installed", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void onAddOrUpdateLocation() {
+        if (!hasLocPermission()) {
+            locPerm.launch(Manifest.permission.ACCESS_FINE_LOCATION);
+            return;
+        }
+        try {
+            fused.getLastLocation().addOnSuccessListener(loc -> {
+                if (loc == null) {
+                    Toast.makeText(requireContext(), "Could not get location", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                Double lat = loc.getLatitude();
+                Double lon = loc.getLongitude();
+                String label = "Current location";
+
+                // If note not yet saved, save a draft first to get an id
+                if (noteId == null) {
+                    String title = b.etTitle.getText().toString().trim();
+                    String bodyHtml = Html.toHtml(b.etBody.getText());
+                    long id = vm.save(null, title, bodyHtml, photoUri, voicePath, false);
+                    noteId = id;
+                }
+
+                ServiceLocator.noteRepository(requireContext())
+                        .setLocation(noteId, lat, lon, label);
+
+                noteLat = lat; noteLon = lon; noteLocLabel = label;
+                updateLocationButtonLabel();
+                Toast.makeText(requireContext(), "Location saved", Toast.LENGTH_SHORT).show();
+            });
+        } catch (Exception e) {
+            Toast.makeText(requireContext(), "Location error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void removeLocation() {
+        if (noteId == null) {
+            Toast.makeText(requireContext(), "Save the note first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ServiceLocator.noteRepository(requireContext())
+                .setLocation(noteId, null, null, null);
+        noteLat = noteLon = null; noteLocLabel = null;
+        updateLocationButtonLabel();
+        Toast.makeText(requireContext(), "Location removed", Toast.LENGTH_SHORT).show();
     }
 
     /* ===================== Audio ===================== */
