@@ -1,4 +1,8 @@
-plugins { id("com.android.application") }
+plugins { 
+    id("com.android.application")
+    kotlin("android")
+    kotlin("plugin.parcelize")
+}
 
 android {
     namespace = "com.example.anchornotes"
@@ -19,6 +23,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    
+    kotlinOptions {
+        jvmTarget = "17"
+    }
 }
 
 dependencies {
@@ -28,12 +36,15 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.2.0")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
 
-    // Lifecycle / ViewModel (Java-friendly)
+    // Lifecycle / ViewModel
     implementation("androidx.lifecycle:lifecycle-runtime:2.6.2")
     implementation("androidx.lifecycle:lifecycle-viewmodel:2.6.2")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.2")
 
-    // Room (Java) – use annotationProcessor, not kapt
+    // Room
     implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
     annotationProcessor("androidx.room:room-compiler:2.6.1")
 
     // Glide (images)
@@ -43,6 +54,7 @@ dependencies {
     // Fragments / activity helpers
     implementation("androidx.activity:activity:1.9.3")
     implementation("androidx.fragment:fragment:1.7.1")
+    implementation("androidx.fragment:fragment-ktx:1.7.1")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
