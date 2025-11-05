@@ -26,6 +26,7 @@ import com.example.anchornotes.viewmodel.NoteViewModel;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
 import java.util.Calendar;
 
 /**
