@@ -13,9 +13,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase;        // ← add
         entities = {
                 NoteEntity.class,
                 TagEntity.class,
-                NoteTagCrossRef.class
+                NoteTagCrossRef.class,
+                RelevantNoteEntity.class
         },
-        version = 2,
+        version = 3,
         exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -24,6 +25,7 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract TagDao tagDao();
     public abstract NoteTagCrossRefDao noteTagCrossRefDao();
     public abstract NoteSearchDao noteSearchDao();
+    public abstract RelevantDao relevantDao();
 
     private static volatile AppDatabase INSTANCE;
 
@@ -53,6 +55,22 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    // v2 -> v3 migration: add reminder fields and relevant table
+    private static final Migration MIGRATION_2_3 = new Migration(2, 3) {
+        @Override public void migrate(@NonNull SupportSQLiteDatabase db) {
+            // Add reminder columns to notes table
+            try { db.execSQL("ALTER TABLE notes ADD COLUMN reminderType TEXT"); } catch (Exception ignored) {}
+            try { db.execSQL("ALTER TABLE notes ADD COLUMN reminderAt INTEGER"); } catch (Exception ignored) {}
+            try { db.execSQL("ALTER TABLE notes ADD COLUMN geofenceId TEXT"); } catch (Exception ignored) {}
+            try { db.execSQL("ALTER TABLE notes ADD COLUMN pendingActivation INTEGER NOT NULL DEFAULT 0"); } catch (Exception ignored) {}
+
+            // Create relevant table
+            db.execSQL("CREATE TABLE IF NOT EXISTS `relevant` (" +
+                    "`noteId` INTEGER PRIMARY KEY NOT NULL, " +
+                    "`expiresAt` INTEGER NOT NULL)");
+        }
+    };
+
     public static AppDatabase get(Context context) {
         if (INSTANCE == null) {
             synchronized (AppDatabase.class) {
@@ -63,7 +81,7 @@ public abstract class AppDatabase extends RoomDatabase {
                                     "anchornotes.db"
                             )
                             .allowMainThreadQueries()          // OK for class project / quick testing
-                            .addMigrations(MIGRATION_1_2)      // preserves data across v1→v2
+                            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)      // preserves data across versions
                             // .fallbackToDestructiveMigration() // dev-only alternative if you want a wipe
                             .build();
                 }

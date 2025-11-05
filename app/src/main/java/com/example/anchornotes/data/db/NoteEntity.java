@@ -1,6 +1,7 @@
 package com.example.anchornotes.data.db;
 
 import androidx.room.Entity;
+import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 
 @Entity(tableName = "notes")
@@ -19,8 +20,19 @@ public class NoteEntity {
     public Double latitude;
     public Double longitude;
     public String locationLabel;
+    
+    // Reminder fields
+    @androidx.annotation.Nullable
+    public String reminderType; // "TIME" | "GEOFENCE" | null
+    @androidx.annotation.Nullable
+    public Long reminderAt; // millis if TIME
+    @androidx.annotation.Nullable
+    public String geofenceId; // stable id like "note-{id}"
+    public boolean pendingActivation; // true if geofence registration failed
 
     public NoteEntity() {} // Room
+    
+    @Ignore
     public NoteEntity(long id, String title, String bodyHtml,
                       boolean hasPhoto, String photoUri,
                       boolean hasVoice, String voiceUri,

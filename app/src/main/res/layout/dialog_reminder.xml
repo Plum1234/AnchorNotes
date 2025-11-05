@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Set Reminder"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp" />
+
+    <RadioGroup
+        android:id="@+id/rgReminderType"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <RadioButton
+            android:id="@+id/rbTime"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="At time"
+            android:checked="true" />
+
+        <RadioButton
+            android:id="@+id/rbGeofence"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="At place" />
+    </RadioGroup>
+
+    <LinearLayout
+        android:id="@+id/llTimeOptions"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:visibility="visible">
+
+        <Button
+            android:id="@+id/btnSelectDateTime"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select Date &amp; Time" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/llGeofenceOptions"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:visibility="gone">
+
+        <Button
+            android:id="@+id/btnSelectPlace"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Use Current Location" />
+
+        <TextView
+            android:id="@+id/tvPlaceInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="No location selected"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/btnCancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cancel"
+            style="@android:style/Widget.Material.Button.Borderless" />
+
+        <Button
+            android:id="@+id/btnSet"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Set"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+</LinearLayout>

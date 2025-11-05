@@ -11,7 +11,8 @@ import com.example.anchornotes.data.repo.NoteSearchRepository;
 public class ServiceLocator {
 
     public static NoteRepository noteRepository(Context c) {
-        return new NoteRepository(AppDatabase.get(c).noteDao());
+        AppDatabase db = AppDatabase.get(c);
+        return new NoteRepository(db.noteDao(), db.relevantDao(), c);
     }
 
     /** Search repository used by HomeFragment for query + filters. */

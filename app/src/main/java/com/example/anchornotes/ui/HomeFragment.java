@@ -21,13 +21,17 @@ import com.example.anchornotes.data.ServiceLocator;
 import com.example.anchornotes.data.db.NoteEntity;
 import com.example.anchornotes.data.repo.NoteSearchRepository;
 import com.example.anchornotes.databinding.FragmentHomeBinding;
+import com.example.anchornotes.model.RelevantNoteUi;
 import com.example.anchornotes.viewmodel.NoteListViewModel;
+import com.example.anchornotes.viewmodel.NoteViewModel;
 
 import java.util.List;
 
 public class HomeFragment extends Fragment {
     private FragmentHomeBinding binding;
     private NotesAdapter adapter;
+    private NotesAdapter relevantAdapter;
+    private NoteViewModel noteViewModel;
 
     // --- NEW: search/filter state ---
     private String currentQuery = null;
@@ -96,6 +100,45 @@ public class HomeFragment extends Fragment {
                 currentFilter.query = currentQuery;
                 runSearch();
                 return true;
+            }
+        });
+
+        // Set up relevant notes adapter
+        relevantAdapter = new NotesAdapter(note -> {
+            FragmentTransaction ft = requireActivity()
+                    .getSupportFragmentManager().beginTransaction();
+            ft.replace(R.id.fragment_container, NoteEditorFragment.newInstance(note.id));
+            ft.addToBackStack(null);
+            ft.commit();
+        });
+        binding.rvRelevantNotes.setLayoutManager(new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false));
+        binding.rvRelevantNotes.setAdapter(relevantAdapter);
+
+        // Set up NoteViewModel for relevant notes
+        noteViewModel = new ViewModelProvider(requireActivity()).get(NoteViewModel.class);
+        noteViewModel.getRelevantNotes().observe(getViewLifecycleOwner(), relevantNotes -> {
+            if (relevantNotes != null && !relevantNotes.isEmpty()) {
+                List<NoteEntity> notes = new java.util.ArrayList<>();
+                for (RelevantNoteUi ui : relevantNotes) {
+                    notes.add(ui.note);
+                }
+                relevantAdapter.submit(notes);
+                binding.relevantNotesSection.setVisibility(View.VISIBLE);
+            } else {
+                binding.relevantNotesSection.setVisibility(View.GONE);
+            }
+        });
+
+        // Observe replace dialog events
+        noteViewModel.getReplaceDialogEvent().observe(getViewLifecycleOwner(), payload -> {
+            if (payload != null) {
+                ReplaceReminderDialogFragment dialog = ReplaceReminderDialogFragment.newInstance(
+                        payload.noteId,
+                        payload.newType,
+                        payload.atMillis,
+                        payload.place
+                );
+                dialog.show(getParentFragmentManager(), "ReplaceReminder");
             }
         });
 

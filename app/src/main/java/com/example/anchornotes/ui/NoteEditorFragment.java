@@ -29,7 +29,9 @@ import com.bumptech.glide.Glide;
 import com.example.anchornotes.data.ServiceLocator;
 import com.example.anchornotes.data.db.NoteEntity;
 import com.example.anchornotes.databinding.FragmentNoteEditorBinding;
+import com.example.anchornotes.model.ReminderType;
 import com.example.anchornotes.viewmodel.NoteEditorViewModel;
+import com.example.anchornotes.viewmodel.NoteViewModel;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 
@@ -160,6 +162,48 @@ public class NoteEditorFragment extends Fragment {
         // --- Location button ---
         b.btnLocation.setOnClickListener(v -> showLocationActions());
 
+        // --- Reminder button ---
+        b.btnReminder.setOnClickListener(v -> {
+            if (noteId == null) {
+                Toast.makeText(requireContext(), "Please save the note first", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            ReminderDialogFragment dialog = ReminderDialogFragment.newInstance(noteId);
+            dialog.show(getParentFragmentManager(), "ReminderDialog");
+        });
+
+        // Long press on reminder button to clear reminder
+        b.btnReminder.setOnLongClickListener(v -> {
+            if (noteId == null) return false;
+            NoteEntity note = vm.load(noteId);
+            if (note != null && note.reminderType != null) {
+                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                        .setTitle("Clear Reminder?")
+                        .setMessage("Remove the reminder for this note?")
+                        .setPositiveButton("Clear", (d, w) -> {
+                            NoteViewModel noteVm = new ViewModelProvider(requireActivity()).get(NoteViewModel.class);
+                            noteVm.onClearReminder(noteId);
+                            NoteEntity updated = vm.load(noteId);
+                            if (updated != null) {
+                                updateReminderButtonText(updated);
+                            }
+                            Toast.makeText(requireContext(), "Reminder cleared", Toast.LENGTH_SHORT).show();
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+                return true;
+            }
+            return false;
+        });
+
+        // Update reminder button text if note has a reminder
+        if (noteId != null) {
+            NoteEntity n = vm.load(noteId);
+            if (n != null && n.reminderType != null) {
+                updateReminderButtonText(n);
+            }
+        }
+
         b.btnSave.setOnClickListener(v -> {
             String title = b.etTitle.getText().toString().trim();
             String bodyHtml = Html.toHtml(b.etBody.getText());
@@ -167,6 +211,12 @@ public class NoteEditorFragment extends Fragment {
             boolean isNew = (noteId == null);
             long savedId = vm.save(noteId, title, bodyHtml, photoUri, voicePath, false);
             noteId = savedId;
+
+            // Update reminder button text after saving
+            NoteEntity savedNote = vm.load(savedId);
+            if (savedNote != null) {
+                updateReminderButtonText(savedNote);
+            }
 
             // Ask to update location on edit (if we have permission)
             if (!isNew && hasLocPermission()) {
@@ -178,7 +228,12 @@ public class NoteEditorFragment extends Fragment {
             }
 
             Toast.makeText(requireContext(), "Saved", Toast.LENGTH_SHORT).show();
-            requireActivity().getSupportFragmentManager().popBackStack();
+            // Don't pop back stack if we just created a new note - allow user to set reminder
+            if (isNew) {
+                // Note saved, reminder button is now enabled
+            } else {
+                requireActivity().getSupportFragmentManager().popBackStack();
+            }
         });
     }
 
@@ -268,6 +323,25 @@ public class NoteEditorFragment extends Fragment {
             b.btnLocation.setText("Location • View/Update/Remove");
         } else {
             b.btnLocation.setText("Add Location");
+        }
+    }
+
+    private void updateReminderButtonText(NoteEntity note) {
+        if (b == null) return;
+        if (note.reminderType == null) {
+            b.btnReminder.setText("Set Reminder");
+        } else if ("TIME".equals(note.reminderType)) {
+            if (note.reminderAt != null) {
+                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("MMM dd, yyyy hh:mm a", java.util.Locale.getDefault());
+                b.btnReminder.setText("Reminder: " + sdf.format(new java.util.Date(note.reminderAt)));
+            } else {
+                b.btnReminder.setText("Reminder: Time");
+            }
+        } else if ("GEOFENCE".equals(note.reminderType)) {
+            String location = note.locationLabel != null ? note.locationLabel : "Location";
+            b.btnReminder.setText("Reminder: " + location);
+        } else {
+            b.btnReminder.setText("Set Reminder");
         }
     }
 
@@ -423,6 +497,18 @@ public class NoteEditorFragment extends Fragment {
             try { if (player != null) player.release(); } catch (Exception ignored) {}
             player = null;
             b.btnPlay.setText("Play");
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Refresh reminder button text when returning to this fragment
+        if (noteId != null && b != null) {
+            NoteEntity note = vm.load(noteId);
+            if (note != null) {
+                updateReminderButtonText(note);
+            }
         }
     }
 

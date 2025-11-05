@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Replace Reminder?"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:id="@+id/tvReplaceMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="This note already has a reminder. Replace it?"
+        android:layout_marginBottom="16dp" />
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/btnCancelReplace"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cancel"
+            style="@android:style/Widget.Material.Button.Borderless" />
+
+        <Button
+            android:id="@+id/btnReplace"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Replace"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+</LinearLayout>

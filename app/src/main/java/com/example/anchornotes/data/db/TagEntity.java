@@ -1,6 +1,7 @@
 package com.example.anchornotes.data.db;
 
 import androidx.room.Entity;
+import androidx.room.Ignore;
 import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
@@ -10,5 +11,7 @@ public class TagEntity {
     public String name;
 
     public TagEntity() {}
+    
+    @Ignore
     public TagEntity(String name) { this.name = name; }
 }

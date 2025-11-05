@@ -6,6 +6,11 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    
+    <!-- Needed for reminders -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
 
     <!-- NOTE: Do NOT add READ_MEDIA_IMAGES when using ACTION_GET_CONTENT/SAF. -->
     <!-- The picker grants URI permissions; no storage permission required. -->
@@ -27,6 +32,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        
+        <receiver android:name=".receiver.AlarmReceiver" android:exported="false" />
+        <receiver android:name=".receiver.GeofenceReceiver" android:exported="false" />
     </application>
 
 </manifest>

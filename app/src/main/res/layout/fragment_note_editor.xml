@@ -97,6 +97,13 @@
             android:contentDescription="Note photo preview" />
 
         <Button
+            android:id="@+id/btnReminder"
+            android:text="Set Reminder"
+            android:layout_marginTop="16dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <Button
             android:id="@+id/btnSave"
             android:text="Save"
             android:layout_marginTop="16dp"

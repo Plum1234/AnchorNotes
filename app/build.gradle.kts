@@ -41,6 +41,7 @@ dependencies {
     // Lifecycle / ViewModel
     implementation("androidx.lifecycle:lifecycle-runtime:2.6.2")
     implementation("androidx.lifecycle:lifecycle-viewmodel:2.6.2")
+    implementation("androidx.lifecycle:lifecycle-livedata:2.6.2")
     // implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
     // implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.2")
 
@@ -57,6 +58,9 @@ dependencies {
     implementation("androidx.activity:activity:1.9.3")
     implementation("androidx.fragment:fragment:1.7.1")
     // implementation("androidx.fragment:fragment-ktx:1.7.1")
+
+    // WorkManager
+    implementation("androidx.work:work-runtime:2.9.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
