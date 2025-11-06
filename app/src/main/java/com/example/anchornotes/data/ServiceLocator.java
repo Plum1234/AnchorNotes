@@ -2,11 +2,13 @@ package com.example.anchornotes.data;
 
 import android.content.Context;
 
+import com.example.anchornotes.context.GeofenceManager;
 import com.example.anchornotes.data.db.AppDatabase;
 import com.example.anchornotes.data.db.NoteTagCrossRefDao;
 import com.example.anchornotes.data.db.TagDao;
 import com.example.anchornotes.data.repo.NoteRepository;
 import com.example.anchornotes.data.repo.NoteSearchRepository;
+import com.example.anchornotes.data.repo.TemplateRepository;
 
 public class ServiceLocator {
 
@@ -28,5 +30,13 @@ public class ServiceLocator {
 
     public static NoteTagCrossRefDao refDao(Context c) {
         return AppDatabase.get(c).noteTagCrossRefDao();
+    }
+
+    public static TemplateRepository templateRepository(Context c) {
+        return new TemplateRepository(c);
+    }
+
+    public static GeofenceManager geofenceManager(Context c) {
+        return new GeofenceManager(c);
     }
 }

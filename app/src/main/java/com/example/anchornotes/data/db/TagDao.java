@@ -17,4 +17,7 @@ public interface TagDao {
 
     @Query("SELECT * FROM tags WHERE name = :name LIMIT 1")
     TagEntity getByName(String name);
+
+    @Query("SELECT * FROM tags WHERE id = :id LIMIT 1")
+    TagEntity getById(long id);
 }

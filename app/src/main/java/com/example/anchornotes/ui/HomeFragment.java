@@ -59,6 +59,20 @@ public class HomeFragment extends Fragment {
                     }
                 }
         );
+
+        // Listen for template picker result
+        getParentFragmentManager().setFragmentResultListener(
+                TemplatePickerBottomSheet.RESULT_KEY,
+                this,
+                (requestKey, bundle) -> {
+                    long templateId = bundle.getLong(TemplatePickerBottomSheet.TEMPLATE_ID_EXTRA, -1);
+                    FragmentTransaction ft = requireActivity()
+                            .getSupportFragmentManager().beginTransaction();
+                    ft.replace(R.id.fragment_container, NoteEditorFragment.newInstance(null, templateId));
+                    ft.addToBackStack(null);
+                    ft.commit();
+                }
+        );
     }
 
     @Nullable
@@ -85,11 +99,9 @@ public class HomeFragment extends Fragment {
         binding.rvNotes.setAdapter(adapter);
 
         binding.fabNew.setOnClickListener(v -> {
-            FragmentTransaction ft = requireActivity()
-                    .getSupportFragmentManager().beginTransaction();
-            ft.replace(R.id.fragment_container, NoteEditorFragment.newInstance(null));
-            ft.addToBackStack(null);
-            ft.commit();
+            // Open template picker instead of directly opening note editor
+            TemplatePickerBottomSheet templatePicker = TemplatePickerBottomSheet.newInstance();
+            templatePicker.show(getParentFragmentManager(), "TemplatePicker");
         });
 
         // --- NEW: SearchView behavior ---
@@ -159,6 +171,13 @@ public class HomeFragment extends Fragment {
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (item.getItemId() == R.id.action_filter) {
             new FilterDialogFragment().show(getParentFragmentManager(), FilterDialogFragment.TAG);
+            return true;
+        } else if (item.getItemId() == R.id.action_templates) {
+            androidx.fragment.app.FragmentTransaction ft = requireActivity()
+                    .getSupportFragmentManager().beginTransaction();
+            ft.replace(R.id.fragment_container, TemplateManagerFragment.newInstance());
+            ft.addToBackStack(null);
+            ft.commit();
             return true;
         }
         return super.onOptionsItemSelected(item);

@@ -3,6 +3,7 @@ package com.example.anchornotes.context;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Build;
 
 import androidx.annotation.NonNull;
@@ -14,7 +15,9 @@ import com.google.android.gms.location.GeofencingRequest;
 import com.google.android.gms.location.LocationServices;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -23,6 +26,8 @@ import java.util.function.Consumer;
 public class GeofenceManager {
     private final Context context;
     private final GeofencingClient geofencingClient;
+    private static final String PREFS_NAME = "geofence_prefs";
+    private static final String PREFS_ACTIVE_GEOFENCES = "active_geofences";
 
     public GeofenceManager(@NonNull Context context) {
         this.context = context.getApplicationContext();
@@ -82,5 +87,38 @@ public class GeofenceManager {
         List<String> ids = new ArrayList<>();
         ids.add(geofenceId);
         geofencingClient.removeGeofences(ids);
+
+        // Remove from active geofences tracking
+        removeFromActiveGeofences(geofenceId);
+    }
+
+    /**
+     * Get currently active geofence IDs for template prioritization
+     * This is maintained by the GeofenceReceiver when geofences are entered/exited
+     */
+    public List<String> getCurrentActiveGeofenceIds() {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        Set<String> activeSet = prefs.getStringSet(PREFS_ACTIVE_GEOFENCES, new HashSet<>());
+        return new ArrayList<>(activeSet);
+    }
+
+    /**
+     * Called by GeofenceReceiver when entering a geofence
+     */
+    public void addToActiveGeofences(String geofenceId) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        Set<String> activeSet = new HashSet<>(prefs.getStringSet(PREFS_ACTIVE_GEOFENCES, new HashSet<>()));
+        activeSet.add(geofenceId);
+        prefs.edit().putStringSet(PREFS_ACTIVE_GEOFENCES, activeSet).apply();
+    }
+
+    /**
+     * Called by GeofenceReceiver when exiting a geofence
+     */
+    public void removeFromActiveGeofences(String geofenceId) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        Set<String> activeSet = new HashSet<>(prefs.getStringSet(PREFS_ACTIVE_GEOFENCES, new HashSet<>()));
+        activeSet.remove(geofenceId);
+        prefs.edit().putStringSet(PREFS_ACTIVE_GEOFENCES, activeSet).apply();
     }
 }
