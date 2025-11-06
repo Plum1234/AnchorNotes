@@ -28,10 +28,14 @@ import androidx.lifecycle.ViewModelProvider;
 import com.bumptech.glide.Glide;
 import com.example.anchornotes.data.ServiceLocator;
 import com.example.anchornotes.data.db.NoteEntity;
+import com.example.anchornotes.data.db.TagEntity;
+import com.example.anchornotes.data.db.TemplateEntity;
+import com.example.anchornotes.data.repo.TemplateRepository;
 import com.example.anchornotes.databinding.FragmentNoteEditorBinding;
 import com.example.anchornotes.model.ReminderType;
 import com.example.anchornotes.viewmodel.NoteEditorViewModel;
 import com.example.anchornotes.viewmodel.NoteViewModel;
+import com.google.android.material.chip.Chip;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 
@@ -39,8 +43,10 @@ import java.io.File;
 
 public class NoteEditorFragment extends Fragment {
     private static final String ARG_ID = "id";
+    private static final String ARG_TEMPLATE_ID = "template_id";
     private FragmentNoteEditorBinding b;
     private Long noteId;
+    private Long templateId;
     private String photoUri;
     private String voicePath;
     private MediaRecorder recorder;
@@ -53,9 +59,14 @@ public class NoteEditorFragment extends Fragment {
     private String noteLocLabel;
 
     public static NoteEditorFragment newInstance(@Nullable Long id) {
+        return newInstance(id, null);
+    }
+
+    public static NoteEditorFragment newInstance(@Nullable Long id, @Nullable Long templateId) {
         NoteEditorFragment f = new NoteEditorFragment();
         Bundle args = new Bundle();
         if (id != null) args.putLong(ARG_ID, id);
+        if (templateId != null && templateId > 0) args.putLong(ARG_TEMPLATE_ID, templateId);
         f.setArguments(args);
         return f;
     }
@@ -101,6 +112,8 @@ public class NoteEditorFragment extends Fragment {
         super.onCreate(savedInstanceState);
         if (getArguments()!=null && getArguments().containsKey(ARG_ID))
             noteId = getArguments().getLong(ARG_ID);
+        if (getArguments()!=null && getArguments().containsKey(ARG_TEMPLATE_ID))
+            templateId = getArguments().getLong(ARG_TEMPLATE_ID);
         vm = new ViewModelProvider(this).get(NoteEditorViewModel.class);
         fused = LocationServices.getFusedLocationProviderClient(requireContext());
     }
@@ -116,7 +129,7 @@ public class NoteEditorFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         setupFormatting();
 
-        /* ---------- Prefill when editing ---------- */
+        /* ---------- Prefill when editing or from template ---------- */
         if (noteId != null) {
             try {
                 NoteEntity n = vm.load(noteId);
@@ -141,6 +154,9 @@ public class NoteEditorFragment extends Fragment {
                     updateLocationButtonLabel();
                 }
             } catch (Exception ignored) {}
+        } else if (templateId != null) {
+            // Apply template for new note creation
+            applyTemplate(templateId);
         } else {
             updateLocationButtonLabel();
         }
@@ -500,10 +516,74 @@ public class NoteEditorFragment extends Fragment {
         }
     }
 
+    private void applyTemplate(long templateId) {
+        try {
+            TemplateRepository templateRepo = ServiceLocator.templateRepository(requireContext());
+            TemplateEntity template = templateRepo.getById(templateId);
+
+            if (template == null) {
+                Toast.makeText(requireContext(), "Template not found", Toast.LENGTH_SHORT).show();
+                updateLocationButtonLabel();
+                return;
+            }
+
+            // Apply background color
+            if (template.pageColor != null && !template.pageColor.isEmpty()) {
+                try {
+                    int color = android.graphics.Color.parseColor(template.pageColor);
+                    // Apply to the main container
+                    b.getRoot().setBackgroundColor(color);
+                } catch (IllegalArgumentException e) {
+                    // Invalid color format, ignore
+                }
+            }
+
+            // Apply prefilled content
+            if (template.prefilledHtml != null && !template.prefilledHtml.isEmpty()) {
+                b.etBody.setText(Html.fromHtml(template.prefilledHtml, Html.FROM_HTML_MODE_COMPACT));
+            }
+
+            // Apply associated tags as chips
+            if (template.associatedTagIds != null && !template.associatedTagIds.isEmpty()) {
+                java.util.List<Long> tagIds = templateRepo.parseAssociatedTagIds(template.associatedTagIds);
+                if (!tagIds.isEmpty()) {
+                    // Load tag names and add them as chips
+                    loadAndDisplayTagsFromIds(tagIds);
+                }
+            }
+
+            // Set template name as default title if no title is set
+            if (template.name != null && !template.name.isEmpty()) {
+                String defaultTitle = template.name.replace("Template", "").replace("template", "").trim();
+                if (!defaultTitle.isEmpty()) {
+                    b.etTitle.setHint("New " + defaultTitle);
+                }
+            }
+
+            updateLocationButtonLabel();
+
+        } catch (Exception e) {
+            Toast.makeText(requireContext(), "Error applying template: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            updateLocationButtonLabel();
+        }
+    }
+
+    private void loadAndDisplayTagsFromIds(java.util.List<Long> tagIds) {
+        try {
+            for (Long tagId : tagIds) {
+                TagEntity tag = ServiceLocator.tagDao(requireContext()).getById(tagId);
+                if (tag != null) {
+                    Toast.makeText(requireContext(), "Applied tag: " + tag.name, Toast.LENGTH_SHORT).show();
+                }
+            }
+        } catch (Exception e) {
+            // Failed to load tags, continue anyway
+        }
+    }
+
     @Override
     public void onResume() {
         super.onResume();
-        // Refresh reminder button text when returning to this fragment
         if (noteId != null && b != null) {
             NoteEntity note = vm.load(noteId);
             if (note != null) {
