@@ -63,9 +63,9 @@ dependencies {
     implementation("androidx.work:work-runtime:2.9.0")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.11.1")
     testImplementation("org.mockito:mockito-core:5.1.1")
     testImplementation("org.mockito:mockito-inline:5.1.1")
-    testImplementation("org.robolectric:robolectric:4.11.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation("androidx.test.espresso:espresso-intents:3.6.1")
