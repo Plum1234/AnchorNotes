@@ -291,7 +291,7 @@ public class NoteRepository {
     public void markRelevantForTime(long noteId, long now) {
         if (relevantDao == null) return;
         ioExecutor.execute(() -> {
-            long expiresAt = now + 3600_000L; // 1 hour
+            long expiresAt = now + 10L; // 1 hour
             RelevantNoteEntity entity = new RelevantNoteEntity(noteId, expiresAt);
             relevantDao.upsert(entity);
         });
