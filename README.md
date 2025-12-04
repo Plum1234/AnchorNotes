@@ -32,8 +32,16 @@ Pick either option before validating search/filter flows:
 
 ## Project Structure
 - `app/src/main/java/com/example/anchornotes` – Activities, fragments, view models, repositories, Room entities/DAOs, and reminder helpers.
+  - `data/db/` – Room database entities (`TemplateEntity`, `NoteEntity`, etc.) and DAOs
+  - `data/repo/` – Repository layer (`TemplateRepository`, `NoteRepository`)
+  - `ui/` – Fragments and dialogs (`EditTemplateDialog`, `TemplateManagerFragment`, `HomeFragment`)
+  - `viewmodel/` – ViewModels (`TemplateViewModel`, `NoteViewModel`)
+  - `util/` – Utility classes (`LocationUtils` for distance calculations)
+  - `model/` – Data models (`PlaceSelection`, `TemplateWithProximity`)
+  - `receiver/` – Broadcast receivers (`GeofenceReceiver` for geofence events)
+  - `context/` – Managers (`GeofenceManager`, `ReminderManager`)
 - `app/src/main/res` – Layouts, drawables, menus, themes.
-- `app/src/androidTest` – Espresso/UIAutomator “black” tests and other instrumentation suites.
+- `app/src/androidTest` – Espresso/UIAutomator "black" tests and other instrumentation suites.
 - `app/src/test` – Robolectric + Mockito unit tests.
 - `SEARCH_FILTER_IMPLEMENTATION.md` – Deep dive into the search/filter architecture.
 - `TESTING_GUIDE.md` & `QUICK_TEST_STEPS.md` – Manual verification playbooks.
@@ -53,11 +61,23 @@ Run tests from Android Studio (Gradle panel) or the command line:
 - Exact-alarm permissions (`SCHEDULE_EXACT_ALARM`) must be manually enabled on Android 12+ if the system prompts for it.
 - Voice notes rely on `RECORD_AUDIO`; test on hardware with a microphone if possible.
 
+### Geofence Behavior
+- **ENTER**: When entering a geofenced area, the app displays a notification and adds the note to the "Relevant Notes" section on the home screen. The note remains visible until you exit the geofence.
+- **EXIT**: When leaving a geofenced area, the note is silently removed from "Relevant Notes" without showing a notification.
+- The "Relevant Notes" section updates in real-time via LiveData observers in `HomeFragment`.
+
+### Template Location Association (Feature 5)
+Templates can now be associated with specific locations:
+- **Create/Edit Templates**: Open Template Manager → Create/Edit Template → tap "📍 Use Current Location" to associate the template with your current GPS coordinates. The location is saved with a 175-meter radius by default.
+- **Location Display**: Templates with associated locations show a "📍 [location label]" badge in the template list.
+- **Clear Location**: Tap "Clear Location" in the template editor to remove the location association.
+- **Proximity Sorting** (partially implemented): The infrastructure exists for sorting templates by proximity when creating notes, but the UI for "Recommended templates for here" is not yet fully connected in the template picker.
+
 ## Troubleshooting
 - **Gradle/Kotlin daemon issues**: see `FIX_KOTLIN_DAEMON.md`.
 - **Search/filter regressions**: follow `QUICK_TEST_STEPS.md` for a reproducible checklist.
-- **Database resets**: Room currently uses `fallbackToDestructiveMigration()`, so schema bumps will wipe local data—this is expected during development.
-- **Location testing on emulators**: use Android Studio’s Location pane to send mock coordinates that intersect with the geofence in your reminder.
+- **Database migrations**: The app uses Room migrations to preserve data across schema changes. Current version is v5 (added template location fields). If you encounter database issues, uninstall and reinstall the app to reset the database.
+- **Location testing on emulators**: use Android Studio's Location pane (Extended Controls → Location) to send mock coordinates that intersect with the geofence in your reminder. For template location testing, set your mock location before tapping "Use Current Location" in the template editor.
 
 ## Additional Documentation
 - `TESTING_GUIDE.md` – Detailed manual verification scenarios.

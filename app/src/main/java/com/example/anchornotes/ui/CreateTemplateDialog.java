@@ -93,8 +93,8 @@ public class CreateTemplateDialog extends DialogFragment {
                 return;
             }
 
-            // Create the template
-            viewModel.createTemplate(name, selectedColor, content, null, null);
+            // Create the template (no location for simple create dialog)
+            viewModel.createTemplate(name, selectedColor, content, null, null, null);
             dismiss();
         });
     }
