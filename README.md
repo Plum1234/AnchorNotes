@@ -1,4 +1,112 @@
-# AnchorNotes
+# AnchorNotes - Sprint Update README
+## Overview
+This document outlines the new features and improvements added to AnchorNotes during our final sprint. All changes focus on improving usability, UI polish, and core note management functionality.
+
+## Feature Updates
+Feature 1: Note Editor UI Improvements
+1. Decluttered Top Toolbar
+What Changed: The note editor toolbar has been streamlined to show only essential actions, with secondary functions moved to an overflow menu.
+How to Access:
+
+Open any note in the editor
+The top toolbar now displays only: Back, Pin, Save, and Reminder buttons
+Tap the three-dot overflow menu (⋮) in the top-right to access additional options
+Formatting tools (bold, italic, checklist) are now in a separate bottom toolbar above the keyboard
+
+2. Aligned Attachment Buttons
+What Changed: "Add photo" and "Add location" buttons are now properly aligned with consistent spacing and sizing.
+
+How to Access:
+Open the note editor
+Scroll to the attachment section below the text area
+Both buttons now appear side-by-side with equal dimensions and clear labels
+
+3. Delete Notes Flow
+What Changed: Users can now delete notes directly from the editor or home screen.
+
+How to Access:
+From Editor:
+Open any note
+Tap the overflow menu (⋮) in the top-right
+Select "Delete"
+Confirm deletion in the dialog
+You'll be returned to the home screen
+
+From Home Screen (Optional):
+Long-press on any note card
+Select "Delete" from the context menu
+Confirm deletion
+
+## Feature 2: Tag Management
+Tag Viewing and Direct Removal
+What Changed: Tags now display as interactive chips with instant add/remove functionality.
+
+How to Access:
+Open a note in the editor
+Tags appear as chips in a ChipGroup (top or bottom of editor)
+To remove a tag: Tap the "X" icon on any chip
+To add tags:
+
+Tap the "Add tag" chip/button
+Select tags from the multi-select dialog
+Checked tags are attached; unchecked tags are removed
+
+Tags also display as read-only chips on home screen note cards
+
+## Feature 4: Custom Location Selection
+Add Locations Beyond Current Location
+What Changed: Users can now attach any location to notes, not just their current GPS position.
+
+How to Access:
+Open the note editor
+Tap "Add location" in the attachment section
+Choose between:
+
+Map Picker: Pan and zoom the map, place a marker at your desired location
+Search Bar: Enter an address or place name using the Places API/Geocoder
+
+Confirm your selection
+The location is saved and can be viewed via "View location"
+Custom locations work with geofence reminders
+
+## Feature 5: Template-Location Association
+Associate Templates with Locations
+What Changed: Templates can now be linked to specific places and automatically recommended based on your location.
+
+## How to Access:
+## Part 1: Link Template to Location
+
+Open Template Manager
+Create a new template or edit an existing one
+Find the "Associate with a place (optional)" section
+Use the location picker (same as Feature 4) to select a place
+Save the template
+Templates with locations display a "📍 [place label]" indicator in the template list
+
+## Part 2: Location-Based Template Recommendations
+
+Be at or near a template's associated location (or simulate in emulator)
+Tap "New Note" button
+Open the Template Picker
+Templates within 200-300m appear in a "Recommended templates for here" section at the top
+Other templates appear below in default order
+If location permission is unavailable, templates display in default order
+
+## Technical Implementation Notes
+Tag Management: Uses removeTagFromNote() in NoteRepository for real-time updates
+Note Deletion: Implemented deleteNote(noteId) in NoteRepository with RecyclerView auto-refresh
+Custom Locations: Integrates Places API/Geocoder with geofence reminder system
+Template Sorting: Proximity-based algorithm calculates distance and marks templates as "nearby"
+UI Components: ChipGroup for tags, ConstraintLayout/LinearLayout for button alignment, AlertDialog for confirmations
+
+Known Limitations
+The following features were planned but not completed in this sprint:
+
+Geofence reminder triggering on location entry
+Geofence reminder retirement on location exit
+Timed reminder auto-retirement after firing
+
+# AnchorNotes - PreUpdate Draft
 
 AnchorNotes is a Kotlin/Java Android app for capturing rich notes with reminders, templates, tags, media attachments, and powerful search + filter tooling. It ships Room for persistence, WorkManager for background reminders, and Google Play Services location APIs for geofenced alerts.
 
