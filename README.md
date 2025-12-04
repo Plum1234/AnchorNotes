@@ -161,6 +161,14 @@ Run tests from Android Studio (Gradle panel) or the command line:
 - Exact-alarm permissions (`SCHEDULE_EXACT_ALARM`) must be manually enabled on Android 12+ if the system prompts for it.
 - Voice notes rely on `RECORD_AUDIO`; test on hardware with a microphone if possible.
 
+### Automatic Reminder Retirement (NEW)
+Time-based reminders now **automatically retire** after their expiration period:
+- **Demo Mode (Current)**: Reminders expire **20 seconds** after triggering for quick demonstration
+- **Production Mode**: Change expiration to **1 hour** by editing `NoteRepository.java:342` (change `20000L` to `3600000L`)
+- **How it works**: Notes appear in "Relevant Notes" section when triggered, then automatically disappear after expiration
+- **Cleanup**: Runs on app startup, resume, and every 15 minutes in background via WorkManager
+- **Quick Demo**: Set a reminder 1 minute from now → Wait for it to fire → Wait 20 seconds → Switch away/back to app → Note disappears!
+
 ## Troubleshooting
 - **Gradle/Kotlin daemon issues**: see `FIX_KOTLIN_DAEMON.md`.
 - **Search/filter regressions**: follow `QUICK_TEST_STEPS.md` for a reproducible checklist.

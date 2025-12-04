@@ -16,6 +16,7 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.anchornotes.R;
+import com.example.anchornotes.context.RelevantCleanup;
 import com.example.anchornotes.data.NoteSearchFilter;
 import com.example.anchornotes.data.ServiceLocator;
 import com.example.anchornotes.data.db.NoteEntity;
@@ -186,6 +187,10 @@ public class HomeFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
+
+        // Aggressive cleanup for demo - ensures expired notes are removed immediately
+        RelevantCleanup.runNow(requireContext());
+
         // If there is an active search/filter, keep it; else refresh the full list
         if (hasActiveFilter(currentFilter)) {
             runSearch();
