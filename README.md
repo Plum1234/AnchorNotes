@@ -55,11 +55,11 @@ Run tests from Android Studio (Gradle panel) or the command line:
 
 ### Automatic Reminder Retirement (NEW)
 Time-based reminders now **automatically retire** after their expiration period:
-- **Demo Mode (Current)**: Reminders expire **2 minutes** after triggering for quick demonstration
-- **Production Mode**: Change expiration to **1 hour** by editing `NoteRepository.java:342`
+- **Demo Mode (Current)**: Reminders expire **20 seconds** after triggering for quick demonstration
+- **Production Mode**: Change expiration to **1 hour** by editing `NoteRepository.java:342` (change `20000L` to `3600000L`)
 - **How it works**: Notes appear in "Relevant Notes" section when triggered, then automatically disappear after expiration
 - **Cleanup**: Runs on app startup, resume, and every 15 minutes in background via WorkManager
-- **Demo Instructions**: See `DEMO_GUIDE.md` for step-by-step demonstration guide
+- **Quick Demo**: Set a reminder 1 minute from now → Wait for it to fire → Wait 20 seconds → Switch away/back to app → Note disappears!
 
 ## Troubleshooting
 - **Gradle/Kotlin daemon issues**: see `FIX_KOTLIN_DAEMON.md`.
