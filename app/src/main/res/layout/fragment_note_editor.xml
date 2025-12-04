@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -17,36 +18,66 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
 
+        <!-- Tags ChipGroup -->
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipGroupTags"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            app:chipSpacing="8dp"
+            app:chipSpacingHorizontal="8dp"
+            app:chipSpacingVertical="8dp" />
+
+        <!-- Formatting toolbar -->
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp">
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:padding="4dp"
+            android:background="?attr/colorControlHighlight"
+            android:gravity="center_vertical">
             <Button
                 android:id="@+id/btnBold"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="B" />
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="B"
+                android:textStyle="bold"
+                android:layout_marginEnd="4dp"
+                android:contentDescription="Bold" />
             <Button
                 android:id="@+id/btnItalic"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="I" />
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="I"
+                android:textStyle="italic"
+                android:layout_marginEnd="4dp"
+                android:contentDescription="Italic" />
             <Button
                 android:id="@+id/btnH1"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="H1" />
+                android:layout_height="48dp"
+                android:text="H1"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp"
+                android:contentDescription="Heading 1" />
             <Button
                 android:id="@+id/btnH2"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="H2" />
+                android:layout_height="48dp"
+                android:text="H2"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp"
+                android:contentDescription="Heading 2" />
             <Button
                 android:id="@+id/btnChecklist"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="☐" />
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="☐"
+                android:textSize="18sp"
+                android:contentDescription="Checklist" />
         </LinearLayout>
 
         <EditText
@@ -58,33 +89,61 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
 
+        <!-- Photo and Location attachment row -->
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp">
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical">
             <Button
                 android:id="@+id/btnAddPhoto"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Add Photo" />
-            <Button
-                android:id="@+id/btnRecord"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Record" />
-            <Button
-                android:id="@+id/btnPlay"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Play"
-                android:enabled="false" />
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:text="Photo"
+                android:layout_marginEnd="8dp"
+                android:padding="8dp"
+                android:minHeight="56dp"
+                android:contentDescription="Add photo" />
             <Button
                 android:id="@+id/btnLocation"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
                 android:text="Location"
-                android:layout_marginTop="8dp"/>
+                android:padding="8dp"
+                android:minHeight="56dp"
+                android:contentDescription="Add location" />
+        </LinearLayout>
+
+        <!-- Audio actions row -->
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical">
+            <Button
+                android:id="@+id/btnRecord"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:text="Record"
+                android:layout_marginEnd="8dp"
+                android:padding="8dp"
+                android:minHeight="56dp"
+                android:contentDescription="Record audio" />
+            <Button
+                android:id="@+id/btnPlay"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:text="Play"
+                android:enabled="false"
+                android:padding="8dp"
+                android:minHeight="56dp"
+                android:contentDescription="Play audio" />
         </LinearLayout>
 
         <ImageView
