@@ -333,13 +333,13 @@ public class NoteRepository {
     // ========== Relevant Notes Management ==========
 
     /**
-     * Marks a note as relevant for a time reminder (expires in 2 minutes for demo).
+     * Marks a note as relevant for a time reminder (expires in 20 seconds for demo).
      * NOTE: For production, change to 3600000L (1 hour)
      */
     public void markRelevantForTime(long noteId, long now) {
         if (relevantDao == null) return;
         ioExecutor.execute(() -> {
-            long expiresAt = now + 120000L; // 2 minutes for demo (2 * 60 * 1000)
+            long expiresAt = now + 20000L; // 20 seconds for demo (20 * 1000)
             // For production use: now + 3600000L (1 hour)
             RelevantNoteEntity entity = new RelevantNoteEntity(noteId, expiresAt);
             relevantDao.upsert(entity);
