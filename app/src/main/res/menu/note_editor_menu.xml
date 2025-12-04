@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <!-- Pin/Unpin - visible if room -->
+    <item
+        android:id="@+id/action_pin"
+        android:icon="@android:drawable/btn_star_big_off"
+        android:title="Pin"
+        android:contentDescription="Pin note"
+        app:showAsAction="ifRoom" />
+    
+    <!-- Save - visible if room -->
+    <item
+        android:id="@+id/action_save"
+        android:icon="@android:drawable/ic_menu_save"
+        android:title="Save"
+        android:contentDescription="Save note"
+        app:showAsAction="ifRoom" />
+    
+    <!-- Reminder - visible if room -->
+    <item
+        android:id="@+id/action_reminder"
+        android:icon="@android:drawable/ic_menu_recent_history"
+        android:title="Reminder"
+        android:contentDescription="Set reminder"
+        app:showAsAction="ifRoom" />
+    
+    <!-- Overflow menu items -->
+    <item
+        android:id="@+id/action_share"
+        android:icon="@android:drawable/ic_menu_share"
+        android:title="Share"
+        app:showAsAction="never" />
+    
+    <item
+        android:id="@+id/action_duplicate"
+        android:icon="@android:drawable/ic_menu_agenda"
+        android:title="Duplicate"
+        app:showAsAction="never" />
+    
+    <item
+        android:id="@+id/action_delete"
+        android:icon="@android:drawable/ic_menu_delete"
+        android:title="Delete"
+        app:showAsAction="never" />
+</menu>
+
