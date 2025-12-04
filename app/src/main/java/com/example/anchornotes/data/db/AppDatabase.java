@@ -17,7 +17,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase;        // ← add
                 RelevantNoteEntity.class,
                 TemplateEntity.class
         },
-        version = 4,
+        version = 5,
         exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -111,6 +111,17 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    // v4 -> v5 migration: add location fields to templates table
+    private static final Migration MIGRATION_4_5 = new Migration(4, 5) {
+        @Override public void migrate(@NonNull SupportSQLiteDatabase db) {
+            // Add location columns to templates table
+            try { db.execSQL("ALTER TABLE templates ADD COLUMN latitude REAL"); } catch (Exception ignored) {}
+            try { db.execSQL("ALTER TABLE templates ADD COLUMN longitude REAL"); } catch (Exception ignored) {}
+            try { db.execSQL("ALTER TABLE templates ADD COLUMN locationLabel TEXT"); } catch (Exception ignored) {}
+            try { db.execSQL("ALTER TABLE templates ADD COLUMN geofenceRadius REAL"); } catch (Exception ignored) {}
+        }
+    };
+
     public static AppDatabase get(Context context) {
         if (INSTANCE == null) {
             synchronized (AppDatabase.class) {
@@ -121,7 +132,7 @@ public abstract class AppDatabase extends RoomDatabase {
                                     "anchornotes.db"
                             )
                             .allowMainThreadQueries()          // OK for class project / quick testing
-                            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)      // preserves data across versions
+                            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)      // preserves data across versions
                             // .fallbackToDestructiveMigration() // dev-only alternative if you want a wipe
                             .build();
                 }

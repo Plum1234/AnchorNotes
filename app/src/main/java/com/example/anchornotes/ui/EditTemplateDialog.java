@@ -1,7 +1,9 @@
 package com.example.anchornotes.ui;
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -18,13 +20,17 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.DialogFragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.anchornotes.R;
 import com.example.anchornotes.data.db.TemplateEntity;
 import com.example.anchornotes.databinding.DialogEditTemplateBinding;
+import com.example.anchornotes.model.PlaceSelection;
 import com.example.anchornotes.viewmodel.TemplateViewModel;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 
 public class EditTemplateDialog extends DialogFragment {
     private static final String ARG_TEMPLATE = "template";
@@ -33,6 +39,8 @@ public class EditTemplateDialog extends DialogFragment {
     private TemplateViewModel viewModel;
     private String selectedColor = "#E3F2FD"; // Default blue
     private TemplateEntity templateToEdit;
+    private FusedLocationProviderClient fusedLocationClient;
+    private PlaceSelection selectedLocation;
 
     public static EditTemplateDialog newInstance(TemplateEntity template) {
         EditTemplateDialog dialog = new EditTemplateDialog();
@@ -52,6 +60,8 @@ public class EditTemplateDialog extends DialogFragment {
         viewModel = new ViewModelProvider(requireParentFragment()).get(TemplateViewModel.class);
         binding = DialogEditTemplateBinding.inflate(LayoutInflater.from(requireContext()));
 
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireContext());
+
         // Check if we're editing an existing template
         if (getArguments() != null && getArguments().containsKey(ARG_TEMPLATE)) {
             templateToEdit = (TemplateEntity) getArguments().getSerializable(ARG_TEMPLATE);
@@ -63,6 +73,7 @@ public class EditTemplateDialog extends DialogFragment {
 
         setupColorPickers();
         setupFormattingButtons();
+        setupLocationPicker();
         setupButtons();
 
         return new AlertDialog.Builder(requireContext())
@@ -84,6 +95,21 @@ public class EditTemplateDialog extends DialogFragment {
         // Set content
         if (!TextUtils.isEmpty(templateToEdit.prefilledHtml)) {
             binding.etTemplateContent.setText(Html.fromHtml(templateToEdit.prefilledHtml, Html.FROM_HTML_MODE_COMPACT));
+        }
+
+        // Load location if present
+        if (templateToEdit.latitude != null && templateToEdit.longitude != null) {
+            float radius = templateToEdit.geofenceRadius != null ? templateToEdit.geofenceRadius : 175.0f;
+            String label = templateToEdit.locationLabel != null ? templateToEdit.locationLabel : "Saved Location";
+            selectedLocation = new PlaceSelection(
+                templateToEdit.latitude,
+                templateToEdit.longitude,
+                radius,
+                label
+            );
+            binding.tvLocationInfo.setText("📍 " + label);
+            binding.tvLocationInfo.setVisibility(View.VISIBLE);
+            binding.btnClearLocation.setVisibility(View.VISIBLE);
         }
     }
 
@@ -176,6 +202,46 @@ public class EditTemplateDialog extends DialogFragment {
         }
     }
 
+    private void setupLocationPicker() {
+        binding.btnPickLocation.setOnClickListener(v -> getCurrentLocationForTemplate());
+        binding.btnClearLocation.setOnClickListener(v -> clearLocation());
+    }
+
+    private void getCurrentLocationForTemplate() {
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(requireContext(), "Location permission required", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        fusedLocationClient.getLastLocation()
+            .addOnSuccessListener(location -> {
+                if (location != null) {
+                    selectedLocation = new PlaceSelection(
+                        location.getLatitude(),
+                        location.getLongitude(),
+                        175.0f,
+                        "Current Location"
+                    );
+                    binding.tvLocationInfo.setText("📍 " + selectedLocation.label);
+                    binding.tvLocationInfo.setVisibility(View.VISIBLE);
+                    binding.btnClearLocation.setVisibility(View.VISIBLE);
+                } else {
+                    Toast.makeText(requireContext(), "Unable to get location", Toast.LENGTH_LONG).show();
+                }
+            })
+            .addOnFailureListener(e -> {
+                Toast.makeText(requireContext(), "Failed to get location: " + e.getMessage(),
+                    Toast.LENGTH_LONG).show();
+            });
+    }
+
+    private void clearLocation() {
+        selectedLocation = null;
+        binding.tvLocationInfo.setVisibility(View.GONE);
+        binding.btnClearLocation.setVisibility(View.GONE);
+    }
+
     private void setupButtons() {
         binding.btnCancel.setOnClickListener(v -> dismiss());
 
@@ -198,10 +264,10 @@ public class EditTemplateDialog extends DialogFragment {
 
             if (templateToEdit != null) {
                 // Update existing template
-                viewModel.updateTemplate(templateToEdit.id, name, selectedColor, htmlContent, null, null);
+                viewModel.updateTemplate(templateToEdit.id, name, selectedColor, htmlContent, null, null, selectedLocation);
             } else {
                 // Create new template
-                viewModel.createTemplate(name, selectedColor, htmlContent, null, null);
+                viewModel.createTemplate(name, selectedColor, htmlContent, null, null, selectedLocation);
             }
             dismiss();
         });

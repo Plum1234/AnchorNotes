@@ -8,11 +8,14 @@ import com.example.anchornotes.data.ServiceLocator;
 import com.example.anchornotes.data.db.AppDatabase;
 import com.example.anchornotes.data.db.TemplateDao;
 import com.example.anchornotes.data.db.TemplateEntity;
+import com.example.anchornotes.model.TemplateWithProximity;
+import com.example.anchornotes.util.LocationUtils;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class TemplateRepository {
@@ -58,6 +61,7 @@ public class TemplateRepository {
 
     /**
      * Get templates for selection, prioritized by current geofence location
+     * @deprecated Use getTemplatesWithProximity instead
      */
     public List<TemplateEntity> getTemplatesForSelection() {
         try {
@@ -73,6 +77,45 @@ public class TemplateRepository {
             // Fallback to normal ordering if geofence logic fails
             return dao.getAll();
         }
+    }
+
+    /**
+     * Get templates with proximity information based on current location
+     *
+     * @param currentLat Current latitude
+     * @param currentLon Current longitude
+     * @return List of templates sorted by proximity (nearby first, then by update time)
+     */
+    public List<TemplateWithProximity> getTemplatesWithProximity(double currentLat, double currentLon) {
+        List<TemplateEntity> withLocation = dao.getTemplatesWithLocation();
+        List<TemplateEntity> withoutLocation = dao.getTemplatesWithoutLocation();
+        List<TemplateWithProximity> result = new ArrayList<>();
+
+        // Calculate distance for templates with location
+        for (TemplateEntity t : withLocation) {
+            if (t.latitude == null || t.longitude == null) continue;
+
+            float radius = t.geofenceRadius != null ? t.geofenceRadius : 175.0f;
+            double distance = LocationUtils.calculateDistance(currentLat, currentLon, t.latitude, t.longitude);
+            boolean isNearby = distance <= radius;
+
+            result.add(new TemplateWithProximity(t, distance, isNearby));
+        }
+
+        // Sort: nearby first (by distance), then others (by updatedAt)
+        Collections.sort(result, (a, b) -> {
+            if (a.isNearby && !b.isNearby) return -1;
+            if (!a.isNearby && b.isNearby) return 1;
+            if (a.isNearby && b.isNearby) return Double.compare(a.distance, b.distance);
+            return Long.compare(b.template.updatedAt, a.template.updatedAt);
+        });
+
+        // Add non-location templates at end
+        for (TemplateEntity t : withoutLocation) {
+            result.add(new TemplateWithProximity(t, Double.MAX_VALUE, false));
+        }
+
+        return result;
     }
 
     public List<TemplateEntity> getExampleTemplates() {
