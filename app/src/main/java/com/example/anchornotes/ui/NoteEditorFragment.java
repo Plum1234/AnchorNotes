@@ -13,6 +13,9 @@ import android.text.Spannable;
 import android.text.style.RelativeSizeSpan;
 import android.text.style.StyleSpan;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
@@ -30,16 +33,22 @@ import com.example.anchornotes.data.ServiceLocator;
 import com.example.anchornotes.data.db.NoteEntity;
 import com.example.anchornotes.data.db.TagEntity;
 import com.example.anchornotes.data.db.TemplateEntity;
+import com.example.anchornotes.data.repo.NoteRepository;
 import com.example.anchornotes.data.repo.TemplateRepository;
 import com.example.anchornotes.databinding.FragmentNoteEditorBinding;
 import com.example.anchornotes.model.ReminderType;
 import com.example.anchornotes.viewmodel.NoteEditorViewModel;
 import com.example.anchornotes.viewmodel.NoteViewModel;
 import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class NoteEditorFragment extends Fragment {
     private static final String ARG_ID = "id";
@@ -57,6 +66,9 @@ public class NoteEditorFragment extends Fragment {
     private FusedLocationProviderClient fused;
     private Double noteLat, noteLon;
     private String noteLocLabel;
+    
+    // --- Pin state ---
+    private boolean isPinned = false;
 
     public static NoteEditorFragment newInstance(@Nullable Long id) {
         return newInstance(id, null);
@@ -110,6 +122,7 @@ public class NoteEditorFragment extends Fragment {
 
     @Override public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setHasOptionsMenu(true); // Enable menu
         if (getArguments()!=null && getArguments().containsKey(ARG_ID))
             noteId = getArguments().getLong(ARG_ID);
         if (getArguments()!=null && getArguments().containsKey(ARG_TEMPLATE_ID))
@@ -127,6 +140,17 @@ public class NoteEditorFragment extends Fragment {
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        // Set up toolbar with back button
+        androidx.appcompat.app.AppCompatActivity activity = (androidx.appcompat.app.AppCompatActivity) requireActivity();
+        androidx.appcompat.widget.Toolbar toolbar = activity.findViewById(com.example.anchornotes.R.id.toolbar);
+        if (toolbar != null) {
+            activity.setSupportActionBar(toolbar);
+            if (activity.getSupportActionBar() != null) {
+                activity.getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+                activity.getSupportActionBar().setDisplayShowHomeEnabled(true);
+            }
+        }
+        
         setupFormatting();
 
         /* ---------- Prefill when editing or from template ---------- */
@@ -152,6 +176,10 @@ public class NoteEditorFragment extends Fragment {
                     noteLon = n.longitude;
                     noteLocLabel = n.locationLabel;
                     updateLocationButtonLabel();
+                    // --- prefill pinned state ---
+                    isPinned = n.pinned;
+                    // --- load and display tags ---
+                    loadAndDisplayTags();
                 }
             } catch (Exception ignored) {}
         } else if (templateId != null) {
@@ -178,79 +206,185 @@ public class NoteEditorFragment extends Fragment {
         // --- Location button ---
         b.btnLocation.setOnClickListener(v -> showLocationActions());
 
-        // --- Reminder button ---
-        b.btnReminder.setOnClickListener(v -> {
-            if (noteId == null) {
-                Toast.makeText(requireContext(), "Please save the note first", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            ReminderDialogFragment dialog = ReminderDialogFragment.newInstance(noteId);
-            dialog.show(getParentFragmentManager(), "ReminderDialog");
-        });
+        // --- Add tag button/chip ---
+        addAddTagChip();
 
-        // Long press on reminder button to clear reminder
-        b.btnReminder.setOnLongClickListener(v -> {
-            if (noteId == null) return false;
-            NoteEntity note = vm.load(noteId);
-            if (note != null && note.reminderType != null) {
-                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                        .setTitle("Clear Reminder?")
-                        .setMessage("Remove the reminder for this note?")
-                        .setPositiveButton("Clear", (d, w) -> {
-                            NoteViewModel noteVm = new ViewModelProvider(requireActivity()).get(NoteViewModel.class);
-                            noteVm.onClearReminder(noteId);
-                            NoteEntity updated = vm.load(noteId);
-                            if (updated != null) {
-                                updateReminderButtonText(updated);
-                            }
-                            Toast.makeText(requireContext(), "Reminder cleared", Toast.LENGTH_SHORT).show();
-                        })
-                        .setNegativeButton("Cancel", null)
-                        .show();
-                return true;
-            }
-            return false;
-        });
+        // Hide Save and Reminder buttons from layout (they're now in toolbar)
+        b.btnSave.setVisibility(View.GONE);
+        b.btnReminder.setVisibility(View.GONE);
+    }
 
-        // Update reminder button text if note has a reminder
-        if (noteId != null) {
-            NoteEntity n = vm.load(noteId);
-            if (n != null && n.reminderType != null) {
-                updateReminderButtonText(n);
-            }
+    /* ===================== Toolbar Menu ===================== */
+
+    @Override
+    public void onCreateOptionsMenu(@NonNull Menu menu, @NonNull MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        inflater.inflate(com.example.anchornotes.R.menu.note_editor_menu, menu);
+    }
+
+    @Override
+    public void onPrepareOptionsMenu(@NonNull Menu menu) {
+        super.onPrepareOptionsMenu(menu);
+        // Update pin icon based on current state
+        MenuItem pinItem = menu.findItem(com.example.anchornotes.R.id.action_pin);
+        if (pinItem != null) {
+            updatePinIcon(pinItem);
+        }
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
+        
+        if (id == android.R.id.home) {
+            // Back button
+            requireActivity().getSupportFragmentManager().popBackStack();
+            return true;
+        } else if (id == com.example.anchornotes.R.id.action_pin) {
+            // Toggle pin
+            togglePin(item);
+            return true;
+        } else if (id == com.example.anchornotes.R.id.action_save) {
+            // Save note
+            saveNote();
+            return true;
+        } else if (id == com.example.anchornotes.R.id.action_reminder) {
+            // Set reminder
+            showReminderDialog();
+            return true;
+        } else if (id == com.example.anchornotes.R.id.action_share) {
+            // Share note
+            shareNote();
+            return true;
+        } else if (id == com.example.anchornotes.R.id.action_duplicate) {
+            // Duplicate note
+            duplicateNote();
+            return true;
+        } else if (id == com.example.anchornotes.R.id.action_delete) {
+            // Delete note
+            deleteNote();
+            return true;
+        }
+        
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void updatePinIcon(MenuItem pinItem) {
+        if (isPinned) {
+            pinItem.setIcon(android.R.drawable.btn_star_big_on);
+            pinItem.setTitle("Unpin");
+        } else {
+            pinItem.setIcon(android.R.drawable.btn_star_big_off);
+            pinItem.setTitle("Pin");
+        }
+    }
+
+    private void togglePin(MenuItem item) {
+        if (noteId == null) {
+            Toast.makeText(requireContext(), "Please save the note first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        isPinned = !isPinned;
+        ServiceLocator.noteRepository(requireContext()).setPinned(noteId, isPinned);
+        updatePinIcon(item);
+        Toast.makeText(requireContext(), isPinned ? "Pinned" : "Unpinned", Toast.LENGTH_SHORT).show();
+    }
+
+    private void saveNote() {
+        String title = b.etTitle.getText().toString().trim();
+        String bodyHtml = Html.toHtml(b.etBody.getText());
+
+        boolean isNew = (noteId == null);
+        long savedId = vm.save(noteId, title, bodyHtml, photoUri, voicePath, isPinned);
+        noteId = savedId;
+
+        // Ask to update location on edit (if we have permission)
+        if (!isNew && hasLocPermission()) {
+            new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                    .setMessage("Update location to current?")
+                    .setPositiveButton("Yes", (d,w) -> onAddOrUpdateLocation())
+                    .setNegativeButton("No", null)
+                    .show();
         }
 
-        b.btnSave.setOnClickListener(v -> {
-            String title = b.etTitle.getText().toString().trim();
-            String bodyHtml = Html.toHtml(b.etBody.getText());
+        Toast.makeText(requireContext(), "Saved", Toast.LENGTH_SHORT).show();
+        // Don't pop back stack if we just created a new note - allow user to set reminder
+        if (!isNew) {
+            requireActivity().getSupportFragmentManager().popBackStack();
+        }
+    }
 
-            boolean isNew = (noteId == null);
-            long savedId = vm.save(noteId, title, bodyHtml, photoUri, voicePath, false);
-            noteId = savedId;
+    private void showReminderDialog() {
+        if (noteId == null) {
+            Toast.makeText(requireContext(), "Please save the note first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ReminderDialogFragment dialog = ReminderDialogFragment.newInstance(noteId);
+        dialog.show(getParentFragmentManager(), "ReminderDialog");
+    }
 
-            // Update reminder button text after saving
-            NoteEntity savedNote = vm.load(savedId);
-            if (savedNote != null) {
-                updateReminderButtonText(savedNote);
-            }
+    private void shareNote() {
+        if (noteId == null) {
+            Toast.makeText(requireContext(), "Please save the note first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        NoteEntity note = vm.load(noteId);
+        if (note == null) {
+            Toast.makeText(requireContext(), "Note not found", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        String text = (note.title != null ? note.title + "\n\n" : "") +
+                (note.bodyHtml != null ? android.text.Html.fromHtml(note.bodyHtml, android.text.Html.FROM_HTML_MODE_LEGACY).toString() : "");
+        
+        Intent shareIntent = new Intent(Intent.ACTION_SEND);
+        shareIntent.setType("text/plain");
+        shareIntent.putExtra(Intent.EXTRA_TEXT, text);
+        startActivity(Intent.createChooser(shareIntent, "Share note"));
+    }
 
-            // Ask to update location on edit (if we have permission)
-            if (!isNew && hasLocPermission()) {
-                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                        .setMessage("Update location to current?")
-                        .setPositiveButton("Yes", (d,w) -> onAddOrUpdateLocation())
-                        .setNegativeButton("No", null)
-                        .show();
-            }
+    private void duplicateNote() {
+        if (noteId == null) {
+            Toast.makeText(requireContext(), "Please save the note first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        NoteEntity note = vm.load(noteId);
+        if (note == null) {
+            Toast.makeText(requireContext(), "Note not found", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Create a new note with the same content
+        long newId = vm.save(null, note.title, note.bodyHtml, note.photoUri, note.voiceUri, false);
+        Toast.makeText(requireContext(), "Note duplicated", Toast.LENGTH_SHORT).show();
+        
+        // Open the duplicated note
+        androidx.fragment.app.FragmentTransaction ft = requireActivity()
+                .getSupportFragmentManager().beginTransaction();
+        ft.replace(com.example.anchornotes.R.id.fragment_container, NoteEditorFragment.newInstance(newId));
+        ft.addToBackStack(null);
+        ft.commit();
+    }
 
-            Toast.makeText(requireContext(), "Saved", Toast.LENGTH_SHORT).show();
-            // Don't pop back stack if we just created a new note - allow user to set reminder
-            if (isNew) {
-                // Note saved, reminder button is now enabled
-            } else {
-                requireActivity().getSupportFragmentManager().popBackStack();
-            }
-        });
+    private void deleteNote() {
+        if (noteId == null) {
+            Toast.makeText(requireContext(), "Please save the note first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle("Delete Note?")
+                .setMessage("Are you sure you want to delete this note?")
+                .setPositiveButton("Delete", (d, w) -> {
+                    // Delete the note using repository (handles cleanup of geofences, reminders, etc.)
+                    ServiceLocator.noteRepository(requireContext()).deleteNote(noteId);
+                    Toast.makeText(requireContext(), "Note deleted", Toast.LENGTH_SHORT).show();
+                    // Navigate back to home list
+                    requireActivity().getSupportFragmentManager().popBackStack();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     /* ===================== Formatting ===================== */
@@ -396,38 +530,29 @@ public class NoteEditorFragment extends Fragment {
     }
 
     private void onAddOrUpdateLocation() {
-        if (!hasLocPermission()) {
-            locPerm.launch(Manifest.permission.ACCESS_FINE_LOCATION);
-            return;
-        }
-        try {
-            fused.getLastLocation().addOnSuccessListener(loc -> {
-                if (loc == null) {
-                    Toast.makeText(requireContext(), "Could not get location", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                Double lat = loc.getLatitude();
-                Double lon = loc.getLongitude();
-                String label = "Current location";
+        // Show location picker dialog
+        LocationPickerDialogFragment picker = LocationPickerDialogFragment.newInstance();
+        picker.setLocationSelectedListener(placeSelection -> {
+            Double lat = placeSelection.latitude;
+            Double lon = placeSelection.longitude;
+            String label = placeSelection.label;
 
-                // If note not yet saved, save a draft first to get an id
-                if (noteId == null) {
-                    String title = b.etTitle.getText().toString().trim();
-                    String bodyHtml = Html.toHtml(b.etBody.getText());
-                    long id = vm.save(null, title, bodyHtml, photoUri, voicePath, false);
-                    noteId = id;
-                }
+            // If note not yet saved, save a draft first to get an id
+            if (noteId == null) {
+                String title = b.etTitle.getText().toString().trim();
+                String bodyHtml = Html.toHtml(b.etBody.getText());
+                long id = vm.save(null, title, bodyHtml, photoUri, voicePath, false);
+                noteId = id;
+            }
 
-                ServiceLocator.noteRepository(requireContext())
-                        .setLocation(noteId, lat, lon, label);
+            ServiceLocator.noteRepository(requireContext())
+                    .setLocation(noteId, lat, lon, label);
 
-                noteLat = lat; noteLon = lon; noteLocLabel = label;
-                updateLocationButtonLabel();
-                Toast.makeText(requireContext(), "Location saved", Toast.LENGTH_SHORT).show();
-            });
-        } catch (Exception e) {
-            Toast.makeText(requireContext(), "Location error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
+            noteLat = lat; noteLon = lon; noteLocLabel = label;
+            updateLocationButtonLabel();
+            Toast.makeText(requireContext(), "Location saved: " + label, Toast.LENGTH_SHORT).show();
+        });
+        picker.show(getChildFragmentManager(), "location_picker");
     }
 
     private void removeLocation() {
@@ -588,8 +713,14 @@ public class NoteEditorFragment extends Fragment {
             NoteEntity note = vm.load(noteId);
             if (note != null) {
                 updateReminderButtonText(note);
+                // Update pinned state
+                isPinned = note.pinned;
+                // Reload tags
+                loadAndDisplayTags();
             }
         }
+        // Invalidate menu to update pin icon
+        requireActivity().invalidateOptionsMenu();
     }
 
     @Override public void onStop() {
@@ -600,4 +731,191 @@ public class NoteEditorFragment extends Fragment {
     }
 
     @Override public void onDestroyView() { super.onDestroyView(); b = null; }
+
+    /* ===================== Tag Management ===================== */
+
+    private void loadAndDisplayTags() {
+        if (noteId == null || b == null) return;
+        
+        new Thread(() -> {
+            try {
+                List<TagEntity> tags = ServiceLocator.noteRepository(requireContext()).getTagsForNote(noteId);
+                requireActivity().runOnUiThread(() -> {
+                    displayTags(tags);
+                });
+            } catch (Exception e) {
+                // Failed to load tags, continue anyway
+            }
+        }).start();
+    }
+
+    private void displayTags(List<TagEntity> tags) {
+        if (b == null) return;
+        b.chipGroupTags.removeAllViews();
+        
+        for (TagEntity tag : tags) {
+            Chip chip = createTagChip(tag);
+            b.chipGroupTags.addView(chip);
+        }
+        
+        // Always show "Add tag" chip at the end
+        addAddTagChip();
+    }
+
+    private Chip createTagChip(TagEntity tag) {
+        Chip chip = new Chip(requireContext());
+        chip.setText(tag.name);
+        chip.setCloseIconVisible(true);
+        chip.setCloseIconResource(android.R.drawable.ic_menu_close_clear_cancel);
+        chip.setOnCloseIconClickListener(v -> {
+            if (noteId == null) {
+                Toast.makeText(requireContext(), "Please save the note first", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            ServiceLocator.noteRepository(requireContext()).removeTagFromNote(noteId, tag.id);
+            // Remove chip from view immediately
+            b.chipGroupTags.removeView(chip);
+            // Ensure "Add tag" chip is still present
+            addAddTagChip();
+            Toast.makeText(requireContext(), "Tag removed", Toast.LENGTH_SHORT).show();
+        });
+        return chip;
+    }
+
+    private void addAddTagChip() {
+        if (b == null) return;
+        
+        // Remove existing "Add tag" chip if present
+        for (int i = 0; i < b.chipGroupTags.getChildCount(); i++) {
+            View child = b.chipGroupTags.getChildAt(i);
+            if (child instanceof Chip) {
+                Chip chip = (Chip) child;
+                if (chip.getText().toString().equals("+ Add tag")) {
+                    b.chipGroupTags.removeView(chip);
+                    break;
+                }
+            }
+        }
+        
+        Chip addChip = new Chip(requireContext());
+        addChip.setText("+ Add tag");
+        addChip.setChipIconResource(android.R.drawable.ic_input_add);
+        addChip.setOnClickListener(v -> showTagSelectionDialog());
+        b.chipGroupTags.addView(addChip);
+    }
+
+    private void showTagSelectionDialog() {
+        if (noteId == null) {
+            Toast.makeText(requireContext(), "Please save the note first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        new Thread(() -> {
+            try {
+                List<TagEntity> allTags = ServiceLocator.noteRepository(requireContext()).getAllTags();
+                List<TagEntity> currentTags = ServiceLocator.noteRepository(requireContext()).getTagsForNote(noteId);
+                Set<Long> currentTagIds = new HashSet<>();
+                for (TagEntity tag : currentTags) {
+                    currentTagIds.add(tag.id);
+                }
+                
+                String[] tagNames = new String[allTags.size()];
+                boolean[] checked = new boolean[allTags.size()];
+                for (int i = 0; i < allTags.size(); i++) {
+                    tagNames[i] = allTags.get(i).name;
+                    checked[i] = currentTagIds.contains(allTags.get(i).id);
+                }
+                
+                requireActivity().runOnUiThread(() -> {
+                    new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                            .setTitle("Select Tags")
+                            .setMultiChoiceItems(tagNames, checked, (dialog, which, isChecked) -> {
+                                checked[which] = isChecked;
+                            })
+                            .setPositiveButton("Apply", (dialog, which) -> {
+                                applyTagSelections(allTags, checked);
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .setNeutralButton("Create New", (dialog, which) -> {
+                                showCreateTagDialog();
+                            })
+                            .show();
+                });
+            } catch (Exception e) {
+                requireActivity().runOnUiThread(() -> {
+                    Toast.makeText(requireContext(), "Error loading tags: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
+    }
+
+    private void applyTagSelections(List<TagEntity> allTags, boolean[] checked) {
+        if (noteId == null) return;
+        
+        new Thread(() -> {
+            try {
+                NoteRepository repo = ServiceLocator.noteRepository(requireContext());
+                List<TagEntity> currentTags = repo.getTagsForNote(noteId);
+                Set<Long> currentTagIds = new HashSet<>();
+                for (TagEntity tag : currentTags) {
+                    currentTagIds.add(tag.id);
+                }
+                
+                // Remove unchecked tags
+                for (int i = 0; i < allTags.size(); i++) {
+                    if (!checked[i] && currentTagIds.contains(allTags.get(i).id)) {
+                        repo.removeTagFromNote(noteId, allTags.get(i).id);
+                    }
+                }
+                
+                // Add checked tags
+                for (int i = 0; i < allTags.size(); i++) {
+                    if (checked[i] && !currentTagIds.contains(allTags.get(i).id)) {
+                        repo.addTagToNote(noteId, allTags.get(i).name);
+                    }
+                }
+                
+                // Reload and display tags
+                requireActivity().runOnUiThread(() -> {
+                    loadAndDisplayTags();
+                    Toast.makeText(requireContext(), "Tags updated", Toast.LENGTH_SHORT).show();
+                });
+            } catch (Exception e) {
+                requireActivity().runOnUiThread(() -> {
+                    Toast.makeText(requireContext(), "Error updating tags: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
+    }
+
+    private void showCreateTagDialog() {
+        android.widget.EditText input = new android.widget.EditText(requireContext());
+        input.setHint("e.g., Biology");
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle("Create New Tag")
+                .setView(input)
+                .setPositiveButton("Create", (d, w) -> {
+                    String name = input.getText().toString().trim();
+                    if (name.isEmpty()) return;
+                    if (noteId == null) {
+                        Toast.makeText(requireContext(), "Please save the note first", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    new Thread(() -> {
+                        try {
+                            ServiceLocator.noteRepository(requireContext()).addTagToNote(noteId, name);
+                            requireActivity().runOnUiThread(() -> {
+                                loadAndDisplayTags();
+                                Toast.makeText(requireContext(), "Tag added", Toast.LENGTH_SHORT).show();
+                            });
+                        } catch (Exception e) {
+                            requireActivity().runOnUiThread(() -> {
+                                Toast.makeText(requireContext(), "Error adding tag: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                    }).start();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
 }

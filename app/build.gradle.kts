@@ -1,7 +1,7 @@
 plugins { 
     id("com.android.application")
-//    kotlin("android")
-//    kotlin("plugin.parcelize")
+    id("org.jetbrains.kotlin.android")
+//    id("org.jetbrains.kotlin.plugin.parcelize")
 }
 
 android {
@@ -24,13 +24,15 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     
-//    kotlinOptions {
-//        jvmTarget = "17"
-//    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
 }
 
 dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")
+    // OSMDroid for maps (no API key required)
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
 
     // implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
@@ -65,6 +67,17 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.11.1")
     testImplementation("org.mockito:mockito-core:5.1.1")
+    testImplementation("org.mockito:mockito-inline:5.1.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    androidTestImplementation("androidx.test.espresso:espresso-intents:3.6.1")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
+    androidTestImplementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.20")
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation("androidx.room:room-testing:2.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.espresso:espresso-contrib:3.6.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:rules:1.6.2")
+    androidTestImplementation("androidx.fragment:fragment-testing:1.7.1")
 }

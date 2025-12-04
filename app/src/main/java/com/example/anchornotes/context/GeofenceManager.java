@@ -93,6 +93,62 @@ public class GeofenceManager {
     }
 
     /**
+     * Adds a geofence for a template.
+     * @param geofenceId Unique geofence ID (typically "template-office", "template-home")
+     * @param lat Latitude of the geofence center
+     * @param lon Longitude of the geofence center
+     * @param radiusMeters Radius in meters
+     */
+    public void addForTemplate(String geofenceId, double lat, double lon, float radiusMeters) {
+        Geofence geofence = new Geofence.Builder()
+                .setRequestId(geofenceId)
+                .setCircularRegion(lat, lon, radiusMeters)
+                .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT)
+                .setLoiteringDelay(0)
+                .build();
+
+        List<Geofence> geofences = new ArrayList<>();
+        geofences.add(geofence);
+
+        GeofencingRequest request = new GeofencingRequest.Builder()
+                .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
+                .addGeofences(geofences)
+                .build();
+
+        Intent intent = new Intent(context, GeofenceReceiver.class);
+        // No note ID for template geofences
+
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            flags |= PendingIntent.FLAG_IMMUTABLE;
+        }
+
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intent, flags);
+
+        geofencingClient.addGeofences(request, pendingIntent)
+                .addOnSuccessListener(v -> {
+                    // Template geofence added successfully
+                })
+                .addOnFailureListener(e -> {
+                    // Template geofence addition failed
+                });
+    }
+
+    /**
+     * Removes a geofence for a template.
+     * @param geofenceId The template geofence ID to remove
+     */
+    public void removeForTemplate(String geofenceId) {
+        List<String> ids = new ArrayList<>();
+        ids.add(geofenceId);
+        geofencingClient.removeGeofences(ids);
+
+        // Remove from active geofences tracking
+        removeFromActiveGeofences(geofenceId);
+    }
+
+    /**
      * Get currently active geofence IDs for template prioritization
      * This is maintained by the GeofenceReceiver when geofences are entered/exited
      */

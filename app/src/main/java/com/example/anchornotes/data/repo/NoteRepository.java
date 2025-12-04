@@ -10,8 +10,12 @@ import com.example.anchornotes.context.ReminderManager;
 import com.example.anchornotes.data.db.AppDatabase;
 import com.example.anchornotes.data.db.NoteDao;
 import com.example.anchornotes.data.db.NoteEntity;
+import com.example.anchornotes.data.db.NoteTagCrossRef;
+import com.example.anchornotes.data.db.NoteTagCrossRefDao;
 import com.example.anchornotes.data.db.RelevantDao;
 import com.example.anchornotes.data.db.RelevantNoteEntity;
+import com.example.anchornotes.data.db.TagDao;
+import com.example.anchornotes.data.db.TagEntity;
 import com.example.anchornotes.model.PlaceSelection;
 import com.example.anchornotes.model.ReminderConflict;
 import com.example.anchornotes.model.ReminderType;
@@ -30,6 +34,8 @@ public class NoteRepository {
     private final Context appContext;
     private ReminderManager reminderManager;
     private GeofenceManager geofenceManager;
+    private TagDao tagDao;
+    private NoteTagCrossRefDao refDao;
 
     public NoteRepository(NoteDao noteDao) {
         this.noteDao = noteDao;
@@ -43,6 +49,9 @@ public class NoteRepository {
         this.appContext = appContext.getApplicationContext();
         this.reminderManager = new ReminderManager(this.appContext);
         this.geofenceManager = new GeofenceManager(this.appContext);
+        AppDatabase db = AppDatabase.get(this.appContext);
+        this.tagDao = db.tagDao();
+        this.refDao = db.noteTagCrossRefDao();
     }
 
     public List<NoteEntity> getAll() {
@@ -283,6 +292,44 @@ public class NoteRepository {
         });
     }
 
+    /**
+     * Deletes a note and cleans up associated resources (geofences, reminders, relevant notes).
+     */
+    public void deleteNote(long noteId) {
+        ioExecutor.execute(() -> {
+            try {
+                NoteEntity note = noteDao.getById(noteId);
+                if (note == null) {
+                    return; // Note doesn't exist, nothing to delete
+                }
+
+                // Clean up geofence if exists
+                if (note.geofenceId != null && geofenceManager != null) {
+                    geofenceManager.removeForNote(note.geofenceId);
+                }
+
+                // Clean up reminder if exists
+                ReminderType reminderType = parseReminderType(note.reminderType);
+                if (reminderType == ReminderType.TIME && reminderManager != null) {
+                    reminderManager.cancel(noteId);
+                } else if (reminderType == ReminderType.GEOFENCE && note.geofenceId != null && geofenceManager != null) {
+                    geofenceManager.removeForNote(note.geofenceId);
+                }
+
+                // Remove from relevant notes if exists
+                if (relevantDao != null) {
+                    relevantDao.delete(noteId);
+                }
+
+                // Delete the note
+                noteDao.delete(note);
+            } catch (Exception e) {
+                // Log error but don't throw - deletion should be best effort
+                android.util.Log.e("NoteRepository", "Error deleting note: " + e.getMessage(), e);
+            }
+        });
+    }
+
     // ========== Relevant Notes Management ==========
 
     /**
@@ -291,7 +338,7 @@ public class NoteRepository {
     public void markRelevantForTime(long noteId, long now) {
         if (relevantDao == null) return;
         ioExecutor.execute(() -> {
-            long expiresAt = now + 3600_000L; // 1 hour
+            long expiresAt = now + 10L; // 1 hour
             RelevantNoteEntity entity = new RelevantNoteEntity(noteId, expiresAt);
             relevantDao.upsert(entity);
         });
@@ -356,6 +403,67 @@ public class NoteRepository {
         if ("TIME".equals(type)) return ReminderType.TIME;
         if ("GEOFENCE".equals(type)) return ReminderType.GEOFENCE;
         return ReminderType.NONE;
+    }
+
+    // ========== Tag Management ==========
+
+    /**
+     * Gets all tags associated with a note.
+     */
+    public List<TagEntity> getTagsForNote(long noteId) {
+        if (tagDao == null) {
+            AppDatabase db = AppDatabase.get(appContext);
+            tagDao = db.tagDao();
+        }
+        return tagDao.getTagsForNote(noteId);
+    }
+
+    /**
+     * Removes a tag from a note.
+     */
+    public void removeTagFromNote(long noteId, long tagId) {
+        ioExecutor.execute(() -> {
+            if (refDao == null) {
+                AppDatabase db = AppDatabase.get(appContext);
+                refDao = db.noteTagCrossRefDao();
+            }
+            refDao.delete(noteId, tagId);
+        });
+    }
+
+    /**
+     * Adds a tag to a note. Creates the tag if it doesn't exist.
+     */
+    public void addTagToNote(long noteId, String tagName) {
+        ioExecutor.execute(() -> {
+            if (tagDao == null) {
+                AppDatabase db = AppDatabase.get(appContext);
+                tagDao = db.tagDao();
+            }
+            if (refDao == null) {
+                AppDatabase db = AppDatabase.get(appContext);
+                refDao = db.noteTagCrossRefDao();
+            }
+            TagEntity existing = tagDao.getByName(tagName);
+            long tagId;
+            if (existing != null) {
+                tagId = existing.id;
+            } else {
+                tagId = tagDao.insert(new TagEntity(tagName));
+            }
+            refDao.insert(new NoteTagCrossRef(noteId, tagId));
+        });
+    }
+
+    /**
+     * Gets all available tags.
+     */
+    public List<TagEntity> getAllTags() {
+        if (tagDao == null) {
+            AppDatabase db = AppDatabase.get(appContext);
+            tagDao = db.tagDao();
+        }
+        return tagDao.getAll();
     }
 
     private static String safe(String s) { return s == null ? "" : s; }

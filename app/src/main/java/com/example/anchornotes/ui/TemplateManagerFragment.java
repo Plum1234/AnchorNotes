@@ -202,8 +202,8 @@ public class TemplateManagerFragment extends Fragment {
                 if (template.isExample) {
                     info += " • Example";
                 }
-                if (!TextUtils.isEmpty(template.associatedGeofenceId)) {
-                    info += " • Location-based";
+                if (template.latitude != null && template.longitude != null) {
+                    info += " • 📍 " + template.locationLabel;
                 }
                 binding.tvTemplateInfo.setText(info);
 

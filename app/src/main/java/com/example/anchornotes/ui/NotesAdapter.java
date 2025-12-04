@@ -21,6 +21,8 @@ import com.example.anchornotes.data.db.TagDao;
 import com.example.anchornotes.data.db.TagEntity;
 import com.example.anchornotes.data.repo.NoteRepository;
 import com.example.anchornotes.databinding.ItemNoteBinding;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -143,6 +145,9 @@ public class NotesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
                     0, 0, n.pinned ? android.R.drawable.btn_star_big_on : 0, 0
             );
 
+            // Load and display tags
+            loadAndDisplayTags(n);
+
             // Tap -> open editor
             b.getRoot().setOnClickListener(v -> onClick.onNote(n));
 
@@ -153,12 +158,52 @@ public class NotesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             });
         }
 
+        private void loadAndDisplayTags(NoteEntity note) {
+            if (b == null) return;
+            
+            // Clear existing chips
+            b.chipGroupTags.removeAllViews();
+            
+            // Load tags in background thread
+            new Thread(() -> {
+                try {
+                    List<TagEntity> tags = ServiceLocator.noteRepository(b.getRoot().getContext()).getTagsForNote(note.id);
+                    android.app.Activity activity = (android.app.Activity) b.getRoot().getContext();
+                    if (activity != null) {
+                        activity.runOnUiThread(() -> {
+                            if (tags != null && !tags.isEmpty()) {
+                                b.chipGroupTags.setVisibility(View.VISIBLE);
+                                for (TagEntity tag : tags) {
+                                    Chip chip = new Chip(b.getRoot().getContext());
+                                    chip.setText(tag.name);
+                                    chip.setClickable(false);
+                                    chip.setFocusable(false);
+                                    b.chipGroupTags.addView(chip);
+                                }
+                            } else {
+                                b.chipGroupTags.setVisibility(View.GONE);
+                            }
+                        });
+                    }
+                } catch (Exception e) {
+                    // Failed to load tags, hide chip group
+                    android.app.Activity activity = (android.app.Activity) b.getRoot().getContext();
+                    if (activity != null) {
+                        activity.runOnUiThread(() -> {
+                            b.chipGroupTags.setVisibility(View.GONE);
+                        });
+                    }
+                }
+            }).start();
+        }
+
         private void showPopup(View anchor, NoteEntity note) {
             PopupMenu menu = new PopupMenu(anchor.getContext(), anchor);
             MenuInflater inflater = menu.getMenuInflater();
             menu.getMenu().add(0, 1, 0, note.pinned ? "Unpin" : "Pin");
             menu.getMenu().add(0, 2, 1, "Add Tag");
             menu.getMenu().add(0, 3, 2, "Remove Tags…");
+            menu.getMenu().add(0, 4, 3, "Delete");
 
             menu.setOnMenuItemClickListener(item -> {
                 Context ctx = anchor.getContext();
@@ -185,6 +230,10 @@ public class NotesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
                     }
                     case 3: { // Remove Tags…
                         showRemoveTagsDialog(anchor.getContext(), note);
+                        return true;
+                    }
+                    case 4: { // Delete
+                        showDeleteDialog(anchor.getContext(), note);
                         return true;
                     }
                 }
@@ -244,6 +293,30 @@ public class NotesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
                             Toast.makeText(ctx, "Tag removed", Toast.LENGTH_SHORT).show();
                         } catch (Exception e) {
                             Toast.makeText(ctx, "Remove failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        }
+
+        private void showDeleteDialog(Context ctx, NoteEntity note) {
+            new androidx.appcompat.app.AlertDialog.Builder(ctx)
+                    .setTitle("Delete Note?")
+                    .setMessage("Are you sure you want to delete this note?")
+                    .setPositiveButton("Delete", (d, w) -> {
+                        try {
+                            // Delete the note using repository (handles cleanup)
+                            NoteRepository repo = ServiceLocator.noteRepository(ctx);
+                            repo.deleteNote(note.id);
+                            
+                            // Remove from local list and refresh
+                            List<NoteEntity> raw = collectNotesOnly();
+                            raw.removeIf(n -> n.id == note.id);
+                            submit(raw);
+                            
+                            Toast.makeText(ctx, "Note deleted", Toast.LENGTH_SHORT).show();
+                        } catch (Exception e) {
+                            Toast.makeText(ctx, "Delete failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                         }
                     })
                     .setNegativeButton("Cancel", null)

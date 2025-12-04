@@ -90,7 +90,7 @@ public class ReminderDialogFragment extends DialogFragment {
         });
 
         btnSelectDateTime.setOnClickListener(v -> showDateTimePicker());
-        btnSelectPlace.setOnClickListener(v -> getCurrentLocation());
+        btnSelectPlace.setOnClickListener(v -> showLocationPicker());
 
         Button btnSet = view.findViewById(R.id.btnSet);
         Button btnCancel = view.findViewById(R.id.btnCancel);
@@ -136,6 +136,16 @@ public class ReminderDialogFragment extends DialogFragment {
                 btnSelectDateTime.setText(android.text.format.DateFormat.format("MMM dd, yyyy hh:mm a", calendar));
             }, hour, minute, false).show();
         }, year, month, day).show();
+    }
+
+    private void showLocationPicker() {
+        LocationPickerDialogFragment picker = LocationPickerDialogFragment.newInstance();
+        picker.setLocationSelectedListener(placeSelection -> {
+            selectedPlace = placeSelection;
+            tvPlaceInfo.setText("Location: " + placeSelection.label);
+            btnSelectPlace.setText("Change Location");
+        });
+        picker.show(getChildFragmentManager(), "location_picker");
     }
 
     private void getCurrentLocation() {

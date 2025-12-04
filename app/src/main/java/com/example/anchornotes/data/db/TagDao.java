@@ -20,4 +20,10 @@ public interface TagDao {
 
     @Query("SELECT * FROM tags WHERE id = :id LIMIT 1")
     TagEntity getById(long id);
+
+    @Query("SELECT t.* FROM tags t " +
+           "INNER JOIN note_tag_cross_ref ntr ON t.id = ntr.tagId " +
+           "WHERE ntr.noteId = :noteId " +
+           "ORDER BY t.name ASC")
+    List<TagEntity> getTagsForNote(long noteId);
 }

@@ -10,8 +10,11 @@ import androidx.lifecycle.MutableLiveData;
 import com.example.anchornotes.data.ServiceLocator;
 import com.example.anchornotes.data.db.TemplateEntity;
 import com.example.anchornotes.data.repo.TemplateRepository;
+import com.example.anchornotes.model.PlaceSelection;
+import com.example.anchornotes.model.TemplateWithProximity;
 import com.example.anchornotes.util.SingleLiveEvent;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -22,6 +25,7 @@ public class TemplateViewModel extends AndroidViewModel {
 
     private final MutableLiveData<List<TemplateEntity>> allTemplates = new MutableLiveData<>();
     private final MutableLiveData<List<TemplateEntity>> templatesForSelection = new MutableLiveData<>();
+    private final MutableLiveData<List<TemplateWithProximity>> templatesForSelectionWithProximity = new MutableLiveData<>();
     private final SingleLiveEvent<String> errorMessage = new SingleLiveEvent<>();
     private final SingleLiveEvent<String> successMessage = new SingleLiveEvent<>();
 
@@ -44,6 +48,10 @@ public class TemplateViewModel extends AndroidViewModel {
 
     public LiveData<List<TemplateEntity>> getTemplatesForSelection() {
         return templatesForSelection;
+    }
+
+    public LiveData<List<TemplateWithProximity>> getTemplatesForSelectionWithProximity() {
+        return templatesForSelectionWithProximity;
     }
 
     public LiveData<String> getErrorMessage() {
@@ -92,7 +100,8 @@ public class TemplateViewModel extends AndroidViewModel {
     }
 
     public void createTemplate(String name, String pageColor, String prefilledHtml,
-                              List<Long> associatedTagIds, String associatedGeofenceId) {
+                              List<Long> associatedTagIds, String associatedGeofenceId,
+                              PlaceSelection location) {
         executor.execute(() -> {
             try {
                 if (!repository.isNameUnique(name, 0)) {
@@ -105,9 +114,17 @@ public class TemplateViewModel extends AndroidViewModel {
                         pageColor,
                         prefilledHtml,
                         repository.serializeTagIds(associatedTagIds),
-                        associatedGeofenceId,
+                        null, // deprecated field
                         false
                 );
+
+                // Set location fields
+                if (location != null) {
+                    template.latitude = location.latitude;
+                    template.longitude = location.longitude;
+                    template.locationLabel = location.label;
+                    template.geofenceRadius = location.radiusMeters;
+                }
 
                 long id = repository.create(template);
                 if (id > 0) {
@@ -124,7 +141,7 @@ public class TemplateViewModel extends AndroidViewModel {
 
     public void updateTemplate(long templateId, String name, String pageColor,
                               String prefilledHtml, List<Long> associatedTagIds,
-                              String associatedGeofenceId) {
+                              String associatedGeofenceId, PlaceSelection location) {
         executor.execute(() -> {
             try {
                 if (!repository.isNameUnique(name, templateId)) {
@@ -142,7 +159,20 @@ public class TemplateViewModel extends AndroidViewModel {
                 template.pageColor = pageColor;
                 template.prefilledHtml = prefilledHtml;
                 template.associatedTagIds = repository.serializeTagIds(associatedTagIds);
-                template.associatedGeofenceId = associatedGeofenceId;
+                template.associatedGeofenceId = null; // clear deprecated field
+
+                // Update location fields
+                if (location != null) {
+                    template.latitude = location.latitude;
+                    template.longitude = location.longitude;
+                    template.locationLabel = location.label;
+                    template.geofenceRadius = location.radiusMeters;
+                } else {
+                    template.latitude = null;
+                    template.longitude = null;
+                    template.locationLabel = null;
+                    template.geofenceRadius = null;
+                }
 
                 repository.update(template);
                 successMessage.postValue("Template updated successfully");
@@ -208,5 +238,32 @@ public class TemplateViewModel extends AndroidViewModel {
 
     public List<Long> parseAssociatedTagIds(String tagIdsJson) {
         return repository.parseAssociatedTagIds(tagIdsJson);
+    }
+
+    /**
+     * Load templates with proximity information based on current location
+     *
+     * @param currentLat Current latitude (null if location unavailable)
+     * @param currentLon Current longitude (null if location unavailable)
+     */
+    public void loadTemplatesForSelectionWithProximity(Double currentLat, Double currentLon) {
+        executor.execute(() -> {
+            try {
+                List<TemplateWithProximity> templates;
+                if (currentLat != null && currentLon != null) {
+                    templates = repository.getTemplatesWithProximity(currentLat, currentLon);
+                } else {
+                    // Fallback: no location available
+                    List<TemplateEntity> all = repository.getAll();
+                    templates = new ArrayList<>();
+                    for (TemplateEntity t : all) {
+                        templates.add(new TemplateWithProximity(t, Double.MAX_VALUE, false));
+                    }
+                }
+                templatesForSelectionWithProximity.postValue(templates);
+            } catch (Exception e) {
+                errorMessage.postValue("Failed to load templates: " + e.getMessage());
+            }
+        });
     }
 }

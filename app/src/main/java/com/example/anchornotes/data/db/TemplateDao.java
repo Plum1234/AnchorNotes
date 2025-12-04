@@ -52,4 +52,11 @@ public interface TemplateDao {
 
     @Query("SELECT COUNT(*) FROM templates WHERE name = :name")
     int countByName(String name);
+
+    // Location-based queries for proximity sorting
+    @Query("SELECT * FROM templates WHERE latitude IS NOT NULL AND longitude IS NOT NULL")
+    List<TemplateEntity> getTemplatesWithLocation();
+
+    @Query("SELECT * FROM templates WHERE latitude IS NULL")
+    List<TemplateEntity> getTemplatesWithoutLocation();
 }

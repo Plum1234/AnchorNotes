@@ -15,10 +15,16 @@ public class TemplateEntity implements Serializable {
     public String pageColor;               // "#E3F2FD", "#FFEBEE" (hex colors)
     public String prefilledHtml;           // HTML content for note body
     public String associatedTagIds;        // JSON: "[1,2,3]" or null
-    public String associatedGeofenceId;    // "office", "home" or null
+    public String associatedGeofenceId;    // "office", "home" or null (deprecated - use lat/lon instead)
     public boolean isExample;              // true for seeded example template
     public long createdAt;
     public long updatedAt;
+
+    // Location fields for template-location association
+    public Double latitude;                // Latitude of associated location
+    public Double longitude;               // Longitude of associated location
+    public String locationLabel;           // "Current Location", "USC Campus", etc.
+    public Float geofenceRadius;           // Radius in meters (default 175.0f)
 
     public TemplateEntity() {} // Room constructor
 
